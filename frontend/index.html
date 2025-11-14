@@ -1,0 +1,34 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Byte Bloom — Cloud Misconfig Detector</title>
+  <link rel="stylesheet" href="../style.css">
+</head>
+<body>
+  <h1>Byte Bloom — Cloud Misconfig Detector</h1>
+
+  <div id="controls">
+    <label>AWS Access Key: <input id="access_key" type="text"></label><br>
+    <label>AWS Secret Key: <input id="secret_key" type="password"></label><br>
+    <label>Region: <input id="region" type="text" value="us-east-1"></label><br>
+    <button id="btnTest">Test Keys</button>
+    <button id="btnScan">Run Scan</button>
+    <button id="btnMock">Use Mock Data</button>
+  </div>
+
+  <div id="status"></div>
+
+  <h2>Results</h2>
+  <table id="results" border="1">
+    <thead>
+      <tr><th>Type</th><th>Name/ID</th><th>Detail</th></tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <button id="exportCsv">Export CSV</button>
+
+  <script src="script.js"></script>
+</body>
+</html>
