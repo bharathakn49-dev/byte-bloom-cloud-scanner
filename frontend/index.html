@@ -1,34 +1,145 @@
 <!doctype html>
-<html>
+<html lang="en">
 <head>
   <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Byte Bloom — Cloud Misconfig Detector</title>
-  <link rel="stylesheet" href="../style.css">
+
+  <!-- Minimal styling (self-contained so you don't need external CSS) -->
+  <style>
+    :root{
+      --bg:#f4f7fb;
+      --card:#ffffff;
+      --muted:#6b7280;
+      --accent:#2563eb;
+      --danger:#dc2626;
+      --success:#16a34a;
+      --glass: rgba(255,255,255,0.6);
+    }
+    html,body{height:100%;margin:0;font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial;}
+    body{background:linear-gradient(180deg,#eef2ff 0%, #f8fafc 100%);display:flex;align-items:center;justify-content:center;padding:28px}
+    .container{width:100%;max-width:980px;margin:auto}
+    .card{background:var(--card);border-radius:12px;padding:20px 22px;box-shadow:0 6px 20px rgba(16,24,40,0.08);border:1px solid rgba(15,23,42,0.03)}
+    header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+    h1{font-size:20px;margin:0;color:#0f172a}
+    .subtitle{color:var(--muted);font-size:13px}
+    .grid{display:grid;grid-template-columns:1fr 360px;gap:18px}
+    @media(max-width:880px){ .grid{grid-template-columns:1fr} }
+
+    /* Left column */
+    .controls{display:flex;flex-direction:column;gap:10px}
+    label{font-size:13px;color:#0f172a;display:block}
+    input[type="text"], input[type="password"]{
+      width:100%;padding:10px;border-radius:8px;border:1px solid #e6eef8;background:transparent;font-size:14px;
+      box-sizing:border-box;
+    }
+    .row{display:flex;gap:8px;align-items:center}
+    .row .half{flex:1}
+
+    .buttons{display:flex;gap:8px;margin-top:6px;flex-wrap:wrap}
+    button{padding:8px 12px;border-radius:8px;border:0;font-weight:600;cursor:pointer}
+    .btn-primary{background:var(--accent);color:white}
+    .btn-ghost{background:transparent;border:1px solid #e6eef8;color:var(--muted)}
+    .btn-warning{background:var(--danger);color:white}
+
+    .note{font-size:13px;color:var(--muted);margin-top:8px}
+
+    /* Right column (status + results) */
+    .panel{display:flex;flex-direction:column;gap:12px}
+    .status{padding:12px;border-radius:8px;background:linear-gradient(180deg, rgba(99,102,241,0.06), rgba(249,250,255,0.02));border:1px solid rgba(99,102,241,0.06)}
+    #status{font-weight:600}
+    .summary{font-size:13px;color:var(--muted)}
+
+    table{width:100%;border-collapse:collapse;background:var(--card);border-radius:8px;overflow:hidden}
+    table th, table td{padding:10px 12px;text-align:left;border-bottom:1px solid #f1f5f9;font-size:13px}
+    table thead th{background:#fbfdff;color:#0f172a;font-weight:700}
+    tbody tr:last-child td{border-bottom:0}
+    .results-wrap{max-height:320px;overflow:auto;border-radius:8px;border:1px solid #eef2ff;padding:6px;background:linear-gradient(180deg,#fff,#fcfeff)}
+    .small{font-size:12px;color:var(--muted)}
+
+    footer{margin-top:14px;text-align:right}
+    .export{background:#111827;color:white;padding:8px 10px;border-radius:8px}
+    .warning-pill{display:inline-block;padding:6px 8px;border-radius:999px;background:rgba(220,38,38,0.08);color:var(--danger);font-weight:600;font-size:12px}
+  </style>
 </head>
 <body>
-  <h1>Byte Bloom — Cloud Misconfig Detector</h1>
+  <div class="container">
+    <div class="card">
+      <header>
+        <div>
+          <h1>Byte Bloom <span style="font-weight:400;color:var(--muted);font-size:13px">— Cloud Misconfig Detector</span></h1>
+          <div class="subtitle">Scan S3, Security Groups & CloudTrail using IAM keys (read-only)</div>
+        </div>
+        <div class="small">Team: <strong>Byte Bloom</strong></div>
+      </header>
 
-  <div id="controls">
-    <label>AWS Access Key: <input id="access_key" type="text"></label><br>
-    <label>AWS Secret Key: <input id="secret_key" type="password"></label><br>
-    <label>Region: <input id="region" type="text" value="us-east-1"></label><br>
-    <button id="btnTest">Test Keys</button>
-    <button id="btnScan">Run Scan</button>
-    <button id="btnMock">Use Mock Data</button>
+      <div class="grid">
+        <!-- LEFT: Controls -->
+        <div class="controls">
+          <div>
+            <label>AWS Access Key</label>
+            <input id="access_key" type="text" placeholder="AKIA... (use read-only IAM user)">
+          </div>
+
+          <div>
+            <label>AWS Secret Key</label>
+            <input id="secret_key" type="password" placeholder="••••••••••">
+          </div>
+
+          <div class="row">
+            <div class="half">
+              <label>Region</label>
+              <input id="region" type="text" value="us-east-1">
+            </div>
+            <div style="align-self:end">
+              <div class="small">Default: <strong>us-east-1</strong></div>
+            </div>
+          </div>
+
+          <div class="buttons">
+            <button id="btnTest" class="btn-primary">Test Keys</button>
+            <button id="btnScan" class="btn-primary">Run Scan</button>
+            <button id="btnMock" class="btn-ghost">Use Mock Data</button>
+            <button id="exportCsv" class="export">Export CSV</button>
+          </div>
+
+          <div class="note">
+            <div class="warning-pill">Important</div>
+            <div style="margin-top:8px">Use a <strong>read-only IAM user</strong>. Do not paste root account keys. Demo mode uses mock data.</div>
+          </div>
+        </div>
+
+        <!-- RIGHT: Status & Results -->
+        <div class="panel">
+          <div class="status">
+            <div id="status">Idle — ready</div>
+            <div class="summary small">Status messages and quick summary will appear here.</div>
+          </div>
+
+          <div>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+              <strong>Scan Results</strong>
+              <span class="small">Auto-categorized (S3 / SG / CloudTrail)</span>
+            </div>
+            <div class="results-wrap">
+              <table id="results" aria-live="polite">
+                <thead>
+                  <tr><th>Type</th><th>Name / ID</th><th>Detail</th></tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <footer class="small">
+        Tips: For demo, use <strong>Use Mock Data</strong>. For real scans, create a read-only IAM user and paste keys above.
+      </footer>
+    </div>
   </div>
 
-  <div id="status"></div>
-
-  <h2>Results</h2>
-  <table id="results" border="1">
-    <thead>
-      <tr><th>Type</th><th>Name/ID</th><th>Detail</th></tr>
-    </thead>
-    <tbody></tbody>
-  </table>
-
-  <button id="exportCsv">Export CSV</button>
-
+  <!-- your script (ensure this path is correct relative to this file) -->
   <script src="script.js"></script>
 </body>
 </html>
