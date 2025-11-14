@@ -1,5 +1,5 @@
 // frontend/script.js (improved)
-// Replace with your render backend URL (already set)
+// Replace with your render backend URL
 const BACKEND = 'https://byte-bloom-cloud-scanner.onrender.com';
 
 // small helper to timeout fetch (milliseconds)
@@ -68,7 +68,7 @@ async function postJSON(path, body){
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   }, 30000);
-  // catch non-json or non-2xx
+
   const text = await res.text();
   try {
     return JSON.parse(text);
@@ -85,7 +85,7 @@ function validateKeys(ak, sk) {
   return true;
 }
 
-// Event handlers
+// TEST KEYS
 btnTest.addEventListener('click', async () => {
   clearResults();
   const payload = {
@@ -114,6 +114,7 @@ btnTest.addEventListener('click', async () => {
   }
 });
 
+// RUN FULL SCAN
 btnScan.addEventListener('click', async () => {
   clearResults();
   const payload = {
@@ -134,15 +135,23 @@ btnScan.addEventListener('click', async () => {
     }
     showStatus('Scan complete', true);
 
-    // S3
-    (r.s3_results || []).forEach(s => addRow('S3', s.bucket || '', s.public ? 'Public' : 'Not public'));
-    // SG
-    (r.sg_results || []).forEach(sg => addRow('SecurityGroup', sg.security_group || '', sg.open_to_world ? `Port ${sg.port}` : 'OK'));
-    // Cloudtrail
-    (r.cloudtrail_results || []).forEach(ct => addRow('CloudTrail', 'log_groups', JSON.stringify(ct)));
+    (r.s3_results || []).forEach(s =>
+      addRow('S3', s.bucket || '', s.public ? 'Public' : 'Not public')
+    );
 
-    // if no results found
-    if ((r.s3_results || []).length === 0 && (r.sg_results || []).length === 0 && (r.cloudtrail_results || []).length === 0) {
+    (r.sg_results || []).forEach(sg =>
+      addRow('SecurityGroup', sg.security_group || '', sg.open_to_world ? `Port ${sg.port}` : 'OK')
+    );
+
+    (r.cloudtrail_results || []).forEach(ct =>
+      addRow('CloudTrail', 'log_groups', JSON.stringify(ct))
+    );
+
+    if (
+      (r.s3_results || []).length === 0 &&
+      (r.sg_results || []).length === 0 &&
+      (r.cloudtrail_results || []).length === 0
+    ) {
       showTemporary('Scan finished but no items found', 3000);
     }
   } catch (e) {
@@ -153,43 +162,53 @@ btnScan.addEventListener('click', async () => {
   }
 });
 
-// Mock button: try local mock first, fall back to raw GitHub if not available
+// USE MOCK DATA
 btnMock.addEventListener('click', async () => {
   clearResults();
   showStatus('Loading mock data...');
   setButtonsDisabled(true);
+
   const localPath = '/mock/sample_scan.json';
-  const githubRaw = 'https://raw.githubusercontent.com/bharathakn49-dev/byte-bloom-cloud-scanner/main/mock/sample_scan.json';
+  const githubRaw =
+    'https://raw.githubusercontent.com/bharathakn49-dev/byte-bloom-cloud-scanner/main/mock/sample_scan.json';
 
   try {
-    let r;
+    let data;
     try {
-      r = await fetchWithTimeout(localPath, {}, 8000);
-      if (!r.ok) throw new Error('local mock not found');
-      r = await r.json();
-    } catch (errLocal) {
-      // fallback to GitHub raw
+      let r = await fetchWithTimeout(localPath, {}, 8000);
+      if (!r.ok) throw new Error('local mock missing');
+      data = await r.json();
+    } catch (e) {
       const r2 = await fetchWithTimeout(githubRaw, {}, 8000);
-      if (!r2.ok) throw new Error('github raw mock not found');
-      r = await r2.json();
+      if (!r2.ok) throw new Error('GitHub mock missing');
+      data = await r2.json();
     }
 
-    (r.s3_results || []).forEach(s => addRow('S3', s.bucket || '', s.public ? 'Public' : 'Not public'));
-    (r.sg_results || []).forEach(sg => addRow('SecurityGroup', sg.security_group || '', sg.open_to_world ? `Port ${sg.port}` : 'OK'));
+    (data.s3_results || []).forEach(s =>
+      addRow('S3', s.bucket || '', s.public ? 'Public' : 'Not public')
+    );
+
+    (data.sg_results || []).forEach(sg =>
+      addRow('SecurityGroup', sg.security_group || '', sg.open_to_world ? `Port ${sg.port}` : 'OK')
+    );
+
     showStatus('Mock loaded', true);
   } catch (e) {
-    const msg = e.name === 'AbortError' ? 'Mock fetch timed out' : `Mock load error: ${e.message}`;
+    const msg =
+      e.name === 'AbortError' ? 'Mock fetch timed out' : `Mock load error: ${e.message}`;
     showStatus(msg, false);
   } finally {
     setButtonsDisabled(false);
   }
 });
 
-// Export CSV (very simple)
+// EXPORT CSV
 exportCsv.addEventListener('click', () => {
   const rows = [['Type','Name','Detail']];
   document.querySelectorAll('#results tbody tr').forEach(tr => {
-    const cells = [...tr.querySelectorAll('td')].map(td => td.textContent.replace(/"/g,'""'));
+    const cells = [...tr.querySelectorAll('td')].map(td =>
+      td.textContent.replace(/"/g,'""')
+    );
     rows.push(cells);
   });
   if (rows.length === 1) {
