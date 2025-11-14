@@ -3,8 +3,79 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Byte Bloom — Cloud Misconfig Detector</title>
-  <link rel="stylesheet" href="style.css">
+  <title>Byte Bloom — Cloud Misconfig Detector (single-file)</title>
+
+  <!-- Inline style (dark UI) -->
+  <style>
+    :root{
+      --bg:#0b0f14;
+      --panel:#0f1720;
+      --muted:#9aa6b2;
+      --accent:#2db6ff;
+      --accent-2:#7b61ff;
+      --success:#3bd671;
+      --danger:#ff5959;
+      --card:#0f1620;
+      --glass: rgba(255,255,255,0.03);
+      --glass-2: rgba(255,255,255,0.02);
+      --text:#e6eef6;
+      --radius:14px;
+      --shadow: 0 6px 30px rgba(3,6,10,0.6);
+      --small-shadow: 0 6px 18px rgba(0,0,0,0.6);
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, "Roboto Mono", "Courier New", monospace;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0}
+    body{
+      margin:0;
+      background: radial-gradient(1200px 400px at 10% 10%, rgba(123,97,255,0.09), transparent 8%), radial-gradient(900px 300px at 95% 85%, rgba(45,182,255,0.06), transparent 8%), var(--bg);
+      color:var(--text);
+      font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+      -webkit-font-smoothing:antialiased;
+      -moz-osx-font-smoothing:grayscale;
+      padding:28px;
+      line-height:1.45;
+    }
+    .container{
+      max-width:1100px;
+      margin:0 auto;
+      display:grid;
+      grid-template-columns: 1fr 420px;
+      gap:28px;
+      align-items:start;
+    }
+    .panel{
+      background:linear-gradient(180deg,var(--panel), rgba(12,15,20,0.98));
+      border-radius:var(--radius);
+      padding:28px;
+      box-shadow:var(--shadow);
+      min-height:360px;
+      border: 1px solid rgba(255,255,255,0.03);
+    }
+    .h1{ font-size:28px; font-weight:700; margin:0 0 12px 0; letter-spacing:-0.02em; }
+    .lead{ margin:0 0 20px 0; color:var(--muted); font-size:14px; }
+    .controls label{ display:block; font-size:13px; margin-bottom:8px; color:var(--muted); }
+    .controls input[type="text"], .controls input[type="password"], .controls input[type="email"]{
+      width:100%; padding:12px 14px; border-radius:10px; background:var(--glass); border:1px solid rgba(255,255,255,0.03);
+      color:var(--text); outline:none; transition:all .12s ease; font-size:14px; margin-bottom:14px; box-shadow: var(--small-shadow) inset;
+    }
+    .btn-row{ display:flex; gap:10px; margin-top:6px; margin-bottom:20px; flex-wrap:wrap; }
+    .btn{ border:0; padding:10px 16px; border-radius:10px; background: linear-gradient(180deg, var(--accent), #0ea6ff); color:white; font-weight:600; cursor:pointer; box-shadow: 0 8px 20px rgba(14,155,230,0.12); transition:transform .12s ease, box-shadow .12s ease, opacity .12s ease; }
+    .btn.secondary{ background: linear-gradient(180deg,#21262b,var(--glass-2)); color:var(--text); box-shadow:none; border:1px solid rgba(255,255,255,0.03); }
+    .btn[disabled]{ opacity:0.5; cursor:default; }
+    .panel-side{ background: linear-gradient(180deg, rgba(16,20,26,0.9), rgba(12,15,20,0.85)); border-radius:var(--radius); padding:18px; box-shadow:var(--small-shadow); border:1px solid rgba(255,255,255,0.03); min-height:360px; }
+    .status{ display:flex; align-items:center; justify-content:space-between; padding:12px 14px; border-radius:10px; background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); color:var(--muted); margin-bottom:18px; }
+    .results-title{ font-weight:700; margin-bottom:8px; color:var(--muted); font-size:13px; }
+    .table-wrap{ overflow:auto; border-radius:10px; background: linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.015)); border:1px solid rgba(255,255,255,0.03); padding:8px; }
+    table{ border-collapse:collapse; width:100%; min-width:380px; color:var(--text); font-size:14px; }
+    thead th{ text-align:left; padding:12px 14px; color:var(--muted); font-size:13px; letter-spacing:0.01em; border-bottom:1px solid rgba(255,255,255,0.03); }
+    tbody td{ padding:12px 14px; border-bottom:1px dashed rgba(255,255,255,0.03); vertical-align:middle; }
+    tbody tr:hover td{ background: linear-gradient(90deg, rgba(255,255,255,0.01), rgba(255,255,255,0.02)); }
+    .badge{ display:inline-block; padding:6px 10px; border-radius:999px; font-size:12px; color:#08121a; background:linear-gradient(180deg,var(--accent-2),var(--accent)); font-weight:700; }
+    .note{ margin-top:18px; color:var(--muted); font-size:13px; }
+    .export{ margin-top:12px; display:inline-block; }
+    @media (max-width:980px){ .container{ grid-template-columns:1fr; padding:16px; gap:18px } .panel, .panel-side{ padding:18px } .table-wrap{ min-height:180px } }
+  </style>
 </head>
 <body>
   <div class="container">
@@ -21,6 +92,7 @@
         <div class="btn-row">
           <button id="btnRegister" class="btn secondary">Register</button>
           <button id="btnLogin" class="btn">Login</button>
+          <button id="btnGuest" class="btn secondary">Continue as Guest</button>
           <button id="btnLogout" class="btn secondary" style="display:none">Logout</button>
         </div>
         <div id="loggedInInfo" style="display:none;margin-top:8px;color:var(--muted)">
@@ -88,7 +160,350 @@
 
   <div id="spinner" style="display:none;position:fixed;left:16px;bottom:16px;background:rgba(0,0,0,0.6);color:white;padding:8px 12px;border-radius:8px;font-weight:700;box-shadow: 0 8px 24px rgba(0,0,0,0.6)">Scanning…</div>
 
-  <script src="script.js"></script>
+  <!-- Inline script (full app logic with guest mode) -->
+  <script>
+  // Inline script version: guest-v1
+  console.log("script.js inline version: guest-v1");
+
+  // Set API_BASE: change this if your backend domain is different
+  const API_BASE = (location.hostname.includes("localhost") ? "http://localhost:5000" : "https://byte-bloom-cloud-scanner.onrender.com");
+
+  // Built-in mock data (fallback) so single-file demo works
+  const BUILT_IN_MOCK_SIMPLE = {
+    "s3_results": [
+      { "bucket": "example-public-bucket", "public": true },
+      { "bucket": "example-private-bucket", "public": false }
+    ],
+    "sg_results": [
+      { "security_group": "sg-0123456789abcdef0", "open_to_world": false, "port": 0 },
+      { "security_group": "sg-0fedcba9876543210", "open_to_world": true, "port": 22 }
+    ],
+    "cloudtrail_results": [
+      { "trail": "default-trail", "status": "OK", "log_group": "arn:aws:logs:us-east-1:123456789012:log-group:/aws/cloudtrail" }
+    ],
+    "summary": { "s3_public_buckets": 1, "sg_open_to_world": 1, "cloudtrail_status": "OK" }
+  };
+
+  const BUILT_IN_MOCK_ISSUES = {
+    "summary": {
+      "total_issues": 3,
+      "by_severity": { "Critical": 1, "High": 1, "Medium": 1 },
+      "scan_time_utc": new Date().toISOString(),
+      "region": "us-east-1"
+    },
+    "issues": [
+      { "id":"S3_PUBLIC_example-bucket", "title":"S3 bucket potentially public", "severity":"Critical", "resource":"s3://example-public-bucket", "details":{"public_acl":true} },
+      { "id":"SG_OPEN_sg-0a1b2c3d", "title":"Security group allows SSH from 0.0.0.0/0", "severity":"High", "resource":"sg:sg-0a1b2c3d", "details":{"from_port":22,"cidr":"0.0.0.0/0"} },
+      { "id":"CLOUDTRAIL_NOT_MULTI", "title":"No multi-region CloudTrail actively logging to S3", "severity":"Medium", "resource":"cloudtrail", "details":{} }
+    ],
+    "raw": {}
+  };
+
+  // DOM helpers
+  const $ = id => document.getElementById(id);
+  const tbody = document.querySelector("#results tbody");
+  const statusEl = $("status");
+  const spinner = $("spinner");
+
+  // Auth & guest state
+  let token = localStorage.getItem("bb_token") || "";
+  let currentUser = localStorage.getItem("bb_user") || "";
+  let isGuest = (currentUser === "guest");
+  let guestHistory = JSON.parse(localStorage.getItem("bb_guest_history") || "[]");
+
+  function showSpinner(on = true){ if(!spinner) return; spinner.style.display = on ? "block" : "none"; }
+  function setStatus(txt, tone="info"){ if(!statusEl) return; statusEl.textContent = txt; statusEl.style.color = tone === "error" ? "var(--danger)" : (tone === "ok" ? "var(--success)" : "var(--muted)"); }
+  function escapeHtml(s){ return String(s || "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+  function clearResults(){ if(tbody) tbody.innerHTML = ""; }
+  function addRow(type, name, detail){ if(!tbody) return; const tr = document.createElement('tr'); tr.innerHTML = `<td><span class="badge">${escapeHtml(type)}</span></td><td><strong>${escapeHtml(name)}</strong></td><td><div style="font-size:13px;color:var(--muted)">${escapeHtml(detail)}</div></td>`; tbody.appendChild(tr); }
+  function toggleButtons(disabled){ ["btnTest","btnScan","btnMock","exportCsv","btnRegister","btnLogin","btnGuest"].forEach(id=>{ const el=$(id); if(el) el.disabled = disabled; }); }
+
+  async function fetchWithTimeout(url, opts={}, timeout=25000){
+    const controller = new AbortController();
+    const id = setTimeout(()=>controller.abort(), timeout);
+    try {
+      const res = await fetch(url, {...opts, signal: controller.signal});
+      clearTimeout(id);
+      return res;
+    } catch(e) {
+      clearTimeout(id);
+      throw e;
+    }
+  }
+
+  function authHeaders(){ return token ? {"Authorization": "Bearer " + token} : {}; }
+
+  async function postJSON(path, body, timeout = 25000){
+    const url = API_BASE + path;
+    const headers = {"Content-Type":"application/json", ...authHeaders()};
+    const res = await fetchWithTimeout(url, {method:"POST", headers, body: JSON.stringify(body)}, timeout);
+    const text = await res.text();
+    try { return JSON.parse(text); } catch(e) { throw new Error(`Invalid JSON (${res.status}): ${text}`); }
+  }
+
+  async function getJSON(path, timeout = 20000){
+    const url = API_BASE + path;
+    const headers = {...authHeaders()};
+    const res = await fetchWithTimeout(url, {headers}, timeout);
+    const text = await res.text();
+    try { return JSON.parse(text); } catch(e) { throw new Error(`Invalid JSON (${res.status}): ${text}`); }
+  }
+
+  // Auth flows
+  async function onRegister(){
+    const username = ($("username").value || "").trim();
+    const pass = $("password").value || "";
+    if(!username || !pass){ alert("Enter username & password"); return; }
+    setStatus("Registering..."); showSpinner(true); toggleButtons(true);
+    try {
+      const r = await postJSON("/auth/register", {username, password: pass}, 20000);
+      if(r.ok){ token = r.token; currentUser = r.username; localStorage.setItem("bb_token", token); localStorage.setItem("bb_user", currentUser); isGuest=false; setAuthUI(); setStatus("Registered & logged in","ok"); }
+      else { setStatus("Register failed","error"); alert("Register failed: "+JSON.stringify(r)); }
+    } catch(e){ setStatus("Register error: "+e.message,"error"); alert("Register error: "+e.message); }
+    finally { showSpinner(false); toggleButtons(false); }
+  }
+
+  async function onLogin(){
+    const username = ($("username").value || "").trim();
+    const pass = $("password").value || "";
+    if(!username || !pass){ alert("Enter username & password"); return; }
+    setStatus("Logging in..."); showSpinner(true); toggleButtons(true);
+    try {
+      const r = await postJSON("/auth/login", {username, password: pass}, 15000);
+      if(r.ok){ token = r.token; currentUser = r.username; localStorage.setItem("bb_token", token); localStorage.setItem("bb_user", currentUser); isGuest=false; setAuthUI(); setStatus("Logged in","ok"); }
+      else { setStatus("Login failed","error"); alert("Login failed: "+JSON.stringify(r)); }
+    } catch(e){ setStatus("Login error: "+e.message,"error"); alert("Login error: "+e.message); }
+    finally { showSpinner(false); toggleButtons(false); }
+  }
+
+  function onGuestLogin(){
+    isGuest = true; token = ""; currentUser = "guest";
+    localStorage.setItem("bb_user","guest"); localStorage.setItem("bb_token","");
+    setAuthUI(); setStatus("Logged in as Guest (local-only)","ok");
+  }
+
+  function onLogout(){
+    token=""; currentUser=""; isGuest=false;
+    localStorage.removeItem("bb_token"); localStorage.removeItem("bb_user");
+    setAuthUI(); setStatus("Logged out","info");
+  }
+
+  function setAuthUI(){
+    const loggedWrap = $("loggedInInfo");
+    const who = $("whoami");
+    const logout = $("btnLogout");
+    const loginBtn = $("btnLogin");
+    const regBtn = $("btnRegister");
+    const guestBtn = $("btnGuest");
+
+    if(isGuest){
+      if(loggedWrap) { loggedWrap.style.display = "block"; who.textContent = "Guest (local)"; }
+      if(logout) logout.style.display = "inline-block";
+      if(loginBtn) loginBtn.style.display = "inline-block";
+      if(regBtn) regBtn.style.display = "inline-block";
+      if(guestBtn) guestBtn.style.display = "none";
+      return;
+    }
+
+    if(token){
+      if(loggedWrap) { loggedWrap.style.display = "block"; who.textContent = currentUser || "user"; }
+      if(logout) logout.style.display = "inline-block";
+      if(loginBtn) loginBtn.style.display = "none";
+      if(regBtn) regBtn.style.display = "none";
+      if(guestBtn) guestBtn.style.display = "none";
+    } else {
+      if(loggedWrap) loggedWrap.style.display = "none";
+      if(logout) logout.style.display = "none";
+      if(loginBtn) loginBtn.style.display = "inline-block";
+      if(regBtn) regBtn.style.display = "inline-block";
+      if(guestBtn) guestBtn.style.display = "inline-block";
+    }
+  }
+
+  // Keys test
+  async function onTestKeys(){
+    const ak = ($("access_key").value || "").trim();
+    const sk = ($("secret_key").value || "").trim();
+    const region = ($("region").value || "").trim() || "us-east-1";
+    if(!ak || !sk){ alert("Enter access key & secret or use mock"); return; }
+    setStatus("Testing keys..."); showSpinner(true); toggleButtons(true);
+    try {
+      const res = await fetchWithTimeout(API_BASE + "/keys/test", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({access_key: ak, secret_key: sk, region}) }, 20000);
+      const j = await res.json();
+      if(j.ok){ setStatus("Key test OK","ok"); alert("Key test summary:\n"+JSON.stringify(j.summary||{}, null,2)); }
+      else { setStatus("Key test failed","error"); alert("Key test failed: "+JSON.stringify(j)); }
+    } catch(e){ setStatus("Key test error: "+(e.name==="AbortError"?"timeout":e.message),"error"); alert("Key test error: "+e); }
+    finally { showSpinner(false); toggleButtons(false); }
+  }
+
+  // Run scan
+  async function onRunScan(){
+    const ak = ($("access_key").value || "").trim();
+    const sk = ($("secret_key").value || "").trim();
+    const region = ($("region").value || "").trim() || "us-east-1";
+
+    if(!ak || !sk){
+      if(!isGuest && confirm("No keys entered. Continue as Guest with mock data?")){
+        onGuestLogin(); await loadMock(); return;
+      }
+      if(isGuest){ await loadMock(); return; }
+      alert("Enter keys or use Guest/Mock");
+      return;
+    }
+
+    if(!token && !isGuest){
+      if(confirm("You are not logged in. Scans will not be saved. Continue as Guest?")){ onGuestLogin(); await loadMock(); return; }
+    }
+
+    setStatus("Running scan..."); showSpinner(true); toggleButtons(true);
+    try {
+      const r = await fetchWithTimeout(API_BASE + "/scan", { method:"POST", headers: {"Content-Type":"application/json", ...authHeaders()}, body: JSON.stringify({access_key: ak, secret_key: sk, region}) }, 40000);
+      const j = await r.json();
+      if(!j.ok){ setStatus("Scan failed: " + (j.error||""), "error"); alert("Scan failed: "+JSON.stringify(j)); }
+      else {
+        const report = j.report || {};
+        renderReport(report);
+        setStatus("Scan complete" + (isGuest ? " (guest local)" : " and saved"), "ok");
+        if(isGuest){
+          guestHistory.unshift({ timestamp: new Date().toISOString(), region, summary: report.summary || {}, report });
+          localStorage.setItem("bb_guest_history", JSON.stringify(guestHistory));
+        }
+      }
+    } catch(e){ setStatus("Scan error: "+(e.name==="AbortError"?"timeout":e.message),"error"); alert("Scan error: "+e); }
+    finally { showSpinner(false); toggleButtons(false); }
+  }
+
+  function renderReport(report){
+    clearResults();
+    if(!report){ setStatus("Empty report","error"); return; }
+    if(report.issues && Array.isArray(report.issues)){
+      report.issues.forEach(issue => addRow((issue.resource||"misc").split(":")[0].toUpperCase(), issue.title||issue.id, (issue.severity||"") + " — " + JSON.stringify(issue.details||{})));
+      return;
+    }
+    (report.s3_results||[]).forEach(s => addRow("S3", s.bucket||"", s.public ? "Public" : "Not public"));
+    (report.sg_results||[]).forEach(sg => addRow("SecurityGroup", sg.security_group||"", sg.open_to_world ? `Port ${sg.port}` : "OK"));
+    (report.cloudtrail_results||[]).forEach(ct => addRow("CloudTrail", ct.trail||"log_groups", JSON.stringify(ct)));
+  }
+
+  // Load mock (tries network mock, then built-in)
+  async function loadMock(){
+    setStatus("Loading mock data..."); showSpinner(true); toggleButtons(true);
+    try {
+      // try fetching external mock files relative to the site
+      let r = null;
+      try { r = await fetchWithTimeout("/mock/report_issues.json", {}, 6000); if(r && r.ok){ renderReport(await r.json()); setStatus("Mock (issues) loaded","ok"); return; } } catch(e){}
+      try { r = await fetchWithTimeout("/mock/sample_scan.json", {}, 6000); if(r && r.ok){ renderReport(await r.json()); setStatus("Mock (sample) loaded","ok"); return; } } catch(e){}
+      // fallback built-in mocks
+      renderReport(BUILT_IN_MOCK_ISSUES);
+      setStatus("Built-in mock loaded","ok");
+    } catch(e){ setStatus("Mock load error: "+e.message,"error"); alert("Mock load error: "+e.message); }
+    finally { showSpinner(false); toggleButtons(false); }
+  }
+
+  // History: guest (local) or server
+  async function fetchHistory(){
+    if(isGuest) return showGuestHistory();
+    if(!token){ alert("Login to view history"); return; }
+    setStatus("Loading history..."); showSpinner(true);
+    try {
+      const j = await getJSON("/history");
+      if(!j.ok){ setStatus("History fetch error","error"); alert("History error: "+JSON.stringify(j)); return; }
+      renderHistoryList(j.scans || []);
+      setStatus("History loaded","ok");
+    } catch(e){ setStatus("History fetch error: "+e.message,"error"); alert("History fetch error: "+e); }
+    finally { showSpinner(false); }
+  }
+
+  function renderHistoryList(scans){
+    const wrap = $("historyList"); wrap.innerHTML = "";
+    scans.forEach(s => {
+      const d = document.createElement("div");
+      d.style.padding="8px"; d.style.borderBottom="1px dashed rgba(255,255,255,0.03)";
+      d.innerHTML = `<div style="font-weight:700">${s.timestamp} (${s.region})</div><div style="color:var(--muted)">${escapeHtml(JSON.stringify(s.summary))}</div><div style="margin-top:6px"><button data-id="${s.id}" class="btn secondary">View</button></div>`;
+      wrap.appendChild(d);
+    });
+    wrap.querySelectorAll("button[data-id]").forEach(b => {
+      b.onclick = async (ev) => { const id = ev.currentTarget.getAttribute("data-id"); await viewScan(id); };
+    });
+    $("historyWrap").style.display = "block";
+  }
+
+  function showGuestHistory(){
+    const wrap = $("historyList"); wrap.innerHTML = "";
+    guestHistory.forEach((h,i) => {
+      const d = document.createElement("div");
+      d.style.padding="8px"; d.style.borderBottom="1px dashed rgba(255,255,255,0.03)";
+      d.innerHTML = `<div style="font-weight:700">${h.timestamp} (${h.region})</div><div style="color:var(--muted)">${escapeHtml(JSON.stringify(h.summary))}</div><div style="margin-top:6px"><button data-id="${i}" class="btn secondary">View</button></div>`;
+      wrap.appendChild(d);
+    });
+    wrap.querySelectorAll("button[data-id]").forEach(b=>{
+      b.onclick = (ev) => { const i = Number(ev.currentTarget.getAttribute("data-id")); renderReport(guestHistory[i].report); setStatus("Loaded guest scan","ok"); };
+    });
+    $("historyWrap").style.display = "block";
+  }
+
+  async function viewScan(id){
+    setStatus("Loading saved scan..."); showSpinner(true);
+    try {
+      const j = await getJSON(`/history/${id}`);
+      if(!j.ok){ setStatus("Failed to load scan","error"); alert("Error: "+JSON.stringify(j)); return; }
+      renderReport(j.scan.report || {});
+      setStatus("Loaded saved scan","ok");
+    } catch(e){ setStatus("Error loading saved scan: "+e.message,"error"); alert("Error loading saved scan: "+e); }
+    finally { showSpinner(false); }
+  }
+
+  async function getJSON(path, timeout=20000){
+    const url = API_BASE + path;
+    const res = await fetchWithTimeout(url, { headers: authHeaders() }, timeout);
+    const txt = await res.text();
+    try { return JSON.parse(txt); } catch(e){ throw new Error("Invalid JSON: "+txt); }
+  }
+
+  function authHeaders(){ return token ? {"Authorization":"Bearer "+token} : {}; }
+
+  // Export CSV
+  function exportCSV(){
+    const rows=[["Type","Name","Detail"]];
+    document.querySelectorAll("#results tbody tr").forEach(tr=>{
+      const cells = Array.from(tr.querySelectorAll("td")).map(td => td.textContent.replace(/"/g,'""'));
+      rows.push(cells);
+    });
+    if(rows.length===1){ setStatus("No rows to export","error"); return; }
+    const csv = rows.map(r=>`"${r.join('","')}"`).join("\n");
+    const blob = new Blob([csv], {type:"text/csv"});
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `bytebloom_report_${new Date().toISOString().slice(0,19).replace(/[:T]/g,'-')}.csv`;
+    a.click(); setStatus("CSV exported","ok");
+  }
+
+  // Wire UI
+  document.addEventListener("DOMContentLoaded", ()=>{
+    if($("btnRegister")) $("btnRegister").addEventListener("click", onRegister);
+    if($("btnLogin")) $("btnLogin").addEventListener("click", onLogin);
+    if($("btnGuest")) $("btnGuest").addEventListener("click", onGuestLogin);
+    if($("btnLogout")) $("btnLogout").addEventListener("click", onLogout);
+    if($("btnTest")) $("btnTest").addEventListener("click", onTestKeys);
+    if($("btnScan")) $("btnScan").addEventListener("click", onRunScan);
+    if($("btnMock")) $("btnMock").addEventListener("click", loadMock);
+    if($("exportCsv")) $("exportCsv").addEventListener("click", exportCSV);
+    if($("btnShowHistory")) $("btnShowHistory").addEventListener("click", fetchHistory);
+
+    // restore guest history if present
+    guestHistory = JSON.parse(localStorage.getItem("bb_guest_history") || "[]");
+    if(localStorage.getItem("bb_token")){
+      token = localStorage.getItem("bb_token");
+      currentUser = localStorage.getItem("bb_user") || "";
+      isGuest = (currentUser === "guest");
+    } else {
+      isGuest = false;
+    }
+    setAuthUI();
+    setStatus("Ready — demo mode", "ok");
+  });
+  </script>
 </body>
 </html>
+
 
