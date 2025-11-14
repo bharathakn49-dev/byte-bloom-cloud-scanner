@@ -1,0 +1,14 @@
+{
+  "summary": {
+    "total_issues": 3,
+    "by_severity": { "Critical": 1, "High": 1, "Medium": 1, "Low": 0, "Info": 0 },
+    "scan_time_utc": "2025-11-15T03:00:00Z",
+    "region": "us-east-1"
+  },
+  "issues": [
+    { "id":"S3_PUBLIC_example-bucket", "title":"S3 bucket potentially public", "severity":"Critical", "resource":"s3://example-public-bucket", "details":{"public_acl":true,"public_access_block_allows_public":true}, "timestamp":"2025-11-15T03:00:00Z" },
+    { "id":"SG_OPEN_sg-0a1b2c3d", "title":"Security group allows SSH from 0.0.0.0/0", "severity":"High", "resource":"sg:sg-0a1b2c3d", "details":{"from_port":22,"to_port":22,"cidr":"0.0.0.0/0"}, "timestamp":"2025-11-15T03:00:00Z" },
+    { "id":"CLOUDTRAIL_NOT_MULTI_LOGGING", "title":"No multi-region CloudTrail actively logging to S3", "severity":"Medium", "resource":"cloudtrail", "details":{}, "timestamp":"2025-11-15T03:00:00Z" }
+  ],
+  "raw": {}
+}
