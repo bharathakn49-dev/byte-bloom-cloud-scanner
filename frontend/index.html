@@ -135,7 +135,35 @@
     <input id="secret_key" placeholder="••••••" />
 
     <label>Region</label>
-    <input id="region" value="us-east-1" />
+<select id="region" style="
+  width:100%; 
+  padding:10px; 
+  border-radius:8px;
+  border:1px solid rgba(255,255,255,0.03);
+  background:rgba(255,255,255,0.02);
+  color:var(--text);
+  margin-bottom:12px;
+">
+  <option value="us-east-1">US East (N. Virginia) — us-east-1</option>
+  <option value="us-east-2">US East (Ohio) — us-east-2</option>
+  <option value="us-west-1">US West (N. California) — us-west-1</option>
+  <option value="us-west-2">US West (Oregon) — us-west-2</option>
+
+  <option value="ap-south-1">Asia Pacific (Mumbai) — ap-south-1</option>
+  <option value="ap-south-2">Asia Pacific (Hyderabad) — ap-south-2</option>
+  <option value="ap-southeast-1">Asia Pacific (Singapore) — ap-southeast-1</option>
+  <option value="ap-southeast-2">Asia Pacific (Sydney) — ap-southeast-2</option>
+  <option value="ap-northeast-1">Asia Pacific (Tokyo) — ap-northeast-1</option>
+
+  <option value="eu-central-1">EU (Frankfurt) — eu-central-1</option>
+  <option value="eu-west-1">EU (Ireland) — eu-west-1</option>
+  <option value="eu-west-2">EU (London) — eu-west-2</option>
+
+  <option value="ca-central-1">Canada (Central) — ca-central-1</option>
+
+  <option value="sa-east-1">South America (São Paulo) — sa-east-1</option>
+</select>
+
 
     <div style="margin-top:12px">
       <button id="btnTest" class="btn">Test Keys</button>
