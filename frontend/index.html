@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Byte Bloom — Cloud Misconfig Detector (Demo + Auto-Fix)</title>
+  <title>Byte Bloom — Cloud Misconfig Detector (Apply Auto-Fix)</title>
   <style>
     :root{
       --bg:#07101a; --panel:#0d1720; --muted:#9aa6b2; --accent:#2db6ff; --accent-2:#7b61ff;
@@ -27,7 +27,6 @@
     .status{padding:10px;border-radius:8px;background:linear-gradient(180deg,rgba(255,255,255,0.01),rgba(255,255,255,0.005));margin-bottom:8px;color:var(--muted)}
     .log{background:rgba(0,0,0,0.2);padding:10px;border-radius:8px;max-height:200px;overflow:auto;margin-top:12px;color:var(--muted)}
     .fixed{color:var(--success);font-weight:700}
-    .danger-pill{display:inline-block;padding:6px 8px;border-radius:999px;background:rgba(255,89,89,0.08);color:var(--danger);font-weight:700;font-size:12px}
     @media(max-width:980px){ .container{grid-template-columns:1fr} }
   </style>
 </head>
@@ -35,7 +34,7 @@
   <div class="container">
     <div class="panel">
       <h1>Byte Bloom</h1>
-      <div class="lead">Cloud Misconfig Detector — Demo with Simulated & Apply Auto-Fix</div>
+      <div class="lead">Cloud Misconfig Detector — Apply Auto-Fix (demo)</div>
 
       <!-- AUTH -->
       <div id="authBox" style="margin-bottom:12px">
@@ -69,12 +68,12 @@
         </div>
 
         <div style="margin-top:12px">
-          <button id="btnAutoFixSimulate" class="btn secondary" title="Simulated Auto-Fix (safe)">Simulate Auto-Fix</button>
+          <!-- Only the Apply Auto-Fix (with double warning) -->
           <button id="btnAutoFixApply" class="btn warn" title="Apply Auto-Fix (may change AWS)">Apply Auto-Fix (May modify AWS)</button>
         </div>
 
         <div style="margin-top:12px" class="status" id="status">Idle — ready</div>
-        <div style="color:var(--muted);margin-top:8px">Use read-only IAM credentials for real scans. For presentation, use mock data or demo keys.</div>
+        <div style="color:var(--muted);margin-top:8px">Use read-only IAM credentials for safe scans; Apply needs write-capable credentials to actually change AWS resources.</div>
       </div>
     </div>
 
@@ -86,7 +85,7 @@
         </div>
       </div>
 
-      <div id="remediationLog" class="log">Remediation log will appear here after Auto-Fix.</div>
+      <div id="remediationLog" class="log">Remediation log will appear here after Apply.</div>
 
       <div style="margin-top:12px" class="table-wrap">
         <table id="results" aria-live="polite">
@@ -103,9 +102,9 @@
   </div>
 
 <script>
-/* Full single-file frontend with both Auto-Fix options */
+/* Frontend with only Apply Auto-Fix (double-warning + server attempt + fallback) */
 
-console.log("Byte Bloom frontend (full) loaded");
+console.log("Byte Bloom frontend (apply-only) loaded");
 
 const API_BASE = (location.hostname.includes("localhost") ? "http://localhost:5000" : "https://byte-bloom-cloud-scanner.onrender.com");
 
@@ -156,10 +155,8 @@ function renderReport(report){
 async function loadMock(){
   setStatus("Loading mock data...");
   try {
-    // try /mock/* files first
     try { const r1 = await fetchWithTimeout("/mock/report_issues.json", {}, 6000); if(r1.ok){ renderReport(await r1.json()); setStatus("Mock (issues) loaded","ok"); return; } } catch(e){}
     try { const r2 = await fetchWithTimeout("/mock/sample_scan.json", {}, 6000); if(r2.ok){ renderReport(await r2.json()); setStatus("Mock loaded","ok"); return; } } catch(e){}
-    // builtin fallback
     renderReport(BUILT_IN_REPORT);
     setStatus("Built-in mock loaded", "ok");
     appendLog("Mock data loaded (built-in)");
@@ -171,7 +168,6 @@ async function onTestKeys(){
   const ak = $("access_key").value.trim(); const sk = $("secret_key").value.trim(); const region = $("region").value.trim()||"us-east-1";
   if(!ak || !sk){ setStatus("Enter keys or use mock", "error"); return; }
   setStatus("Testing keys...");
-  // demo acceptance for fake keys
   if(ak.toUpperCase().includes("EXAMPLE") || ak.toUpperCase().includes("FAKE") || sk.toUpperCase().includes("EXAMPLE") || sk.toUpperCase().includes("FAKE")){
     setStatus("Keys valid (demo)", "ok"); appendLog("Key test: demo keys accepted"); return;
   }
@@ -217,7 +213,7 @@ function collectCurrentIssues(){
   return issues;
 }
 
-// simulateFix logic
+// simulateFix logic (used for fallback or simulated apply when keys are fake)
 function simulateFix(issue){
   if(issue.type.toUpperCase().includes("S3")) return { title:`S3: ${issue.name}`, result:`Bucket marked private (simulation)` };
   if(issue.type.toUpperCase().startsWith("SG") || issue.type.toUpperCase().includes("SECURITY")) {
@@ -227,32 +223,6 @@ function simulateFix(issue){
   }
   if(issue.type.toUpperCase().includes("CLOUDTRAIL") || issue.type.toUpperCase().includes("CLOUD")) return { title:`CloudTrail: ${issue.name}`, result:`Enable multi-region CloudTrail (simulation)` };
   return { title:issue.type + " " + issue.name, result:"Marked fixed (simulation)" };
-}
-
-// Simulate Auto-Fix (safe)
-async function onAutoFixSimulate(){
-  const issues = collectCurrentIssues();
-  if(issues.length === 0){ setStatus("No items to fix", "info"); return; }
-  if(!confirm(`This will SIMULATE fixes for ${issues.length} items. No changes will be made. Continue?`)) return;
-  setStatus("Simulated Auto-Fix running...");
-  appendLog("Simulated Auto-Fix started: " + new Date().toLocaleString());
-  for(const issue of issues){
-    appendLog("Preparing simulated fix for: " + issue.type + " / " + issue.name);
-    await new Promise(res => setTimeout(res, 600));
-    const fix = simulateFix(issue);
-    replaceRowAsFixed(issue.type, issue.name, fix.result);
-    appendLog("✔ " + fix.title + " → " + fix.result);
-  }
-  appendLog("Simulated Auto-Fix completed.");
-  setStatus("Simulated Auto-Fix completed", "ok");
-  const remEntry = { timestamp: new Date().toISOString(), kind: "simulate", items: issues.map(i=>({type:i.type,name:i.name})) };
-  let remHistory = JSON.parse(localStorage.getItem("bb_remediation_history") || "[]");
-  remHistory.unshift(remEntry);
-  localStorage.setItem("bb_remediation_history", JSON.stringify(remHistory));
-  if(isGuest){
-    guestHistory.unshift({ timestamp: new Date().toISOString(), region: $("region").value || "us-east-1", summary: { simulated_fix_count: issues.length }, report: { simulated_fixed: true } });
-    localStorage.setItem("bb_guest_history", JSON.stringify(guestHistory));
-  }
 }
 
 // Attempt server remediate then fallback to simulation
@@ -292,6 +262,7 @@ async function attemptServerRemediateOrFallback(ak, sk, region, issues){
 async function onAutoFixApply(){
   const issues = collectCurrentIssues();
   if(issues.length === 0){ setStatus("No items to fix", "info"); return; }
+
   if (!confirm(
 `⚠️ WARNING: Apply Auto-Fix may PERMANENTLY MODIFY your AWS resources.
 
@@ -302,13 +273,18 @@ This operation can:
 
 Proceed only if you understand the impact and are using the correct IAM credentials.`
   )) return;
+
   if (!confirm("⚠️ FINAL CONFIRMATION: Are you ABSOLUTELY SURE you want to apply fixes to your AWS account?")) return;
+
   setStatus("Applying fixes (this may modify AWS)...");
   appendLog("Apply Auto-Fix initiated by user at " + new Date().toLocaleString());
+
   const ak = $("access_key").value.trim();
   const sk = $("secret_key").value.trim();
   const region = $("region").value.trim() || "us-east-1";
+
   const keysLooksFake = (!ak || !sk) || ak.toUpperCase().includes("EXAMPLE") || ak.toUpperCase().includes("FAKE") || sk.toUpperCase().includes("EXAMPLE") || sk.toUpperCase().includes("FAKE");
+
   if(keysLooksFake){
     appendLog("Detected demo/fake keys or no keys — performing simulated apply (no AWS changes).");
     for(const issue of issues){
@@ -326,6 +302,7 @@ Proceed only if you understand the impact and are using the correct IAM credenti
     localStorage.setItem("bb_remediation_history", JSON.stringify(remHistory));
     return;
   }
+
   // keys look real — attempt server remediation, fallback if fails
   await attemptServerRemediateOrFallback(ak, sk, region, issues);
 }
@@ -419,13 +396,12 @@ document.addEventListener("DOMContentLoaded", ()=>{
   if($("btnScan")) $("btnScan").addEventListener("click", onRunScan);
   if($("btnMock")) $("btnMock").addEventListener("click", loadMock);
   if($("exportCsv")) $("exportCsv").addEventListener("click", exportCSV);
-  if($("btnAutoFixSimulate")) $("btnAutoFixSimulate").addEventListener("click", onAutoFixSimulate);
   if($("btnAutoFixApply")) $("btnAutoFixApply").addEventListener("click", onAutoFixApply);
   if($("btnShowHistory")) $("btnShowHistory").addEventListener("click", ()=>{ if(isGuest) showGuestHistory(); else alert("No server history in demo mode"); });
 
   guestHistory = JSON.parse(localStorage.getItem("bb_guest_history") || "[]");
   setAuthUI();
-  setStatus("Ready — demo + Auto-Fix options available", "ok");
+  setStatus("Ready — Apply Auto-Fix is enabled (demo)", "ok");
 });
 </script>
 </body>
