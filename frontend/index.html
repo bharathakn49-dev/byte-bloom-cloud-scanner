@@ -432,8 +432,27 @@ Proceed only if you understand this.`
 }
 
 /* ------------------------------
-   AUTH (DEMO)
+   AUTH (DEMO) - improved client-side demo auth
    ------------------------------ */
+
+/*
+  Users are stored in localStorage under key "bb_users" as:
+  { "alice": "password123", "bob": "pw" }
+  This is ONLY for demo/hackathon; do NOT use in production.
+*/
+
+function loadUsers() {
+  try {
+    return JSON.parse(localStorage.getItem("bb_users") || "{}");
+  } catch (e) {
+    return {};
+  }
+}
+
+function saveUsers(users) {
+  localStorage.setItem("bb_users", JSON.stringify(users));
+}
+
 function refreshAuth(){
   const info = $("loggedInInfo");
   const who = $("whoami");
@@ -442,6 +461,7 @@ function refreshAuth(){
   const reg = $("btnRegister");
   const guest = $("btnGuest");
 
+  // show guest state
   if(isGuest){
     info.style.display = "block";
     who.textContent = "Guest";
@@ -452,14 +472,16 @@ function refreshAuth(){
     return;
   }
 
-  if(token){
+  // logged in user
+  if(token && currentUser){
     info.style.display = "block";
     who.textContent = currentUser;
     logout.style.display = "inline-block";
     login.style.display = "none";
     reg.style.display = "none";
     guest.style.display = "none";
-  }else{
+  } else {
+    // not logged in
     info.style.display = "none";
     logout.style.display = "none";
     login.style.display = "inline-block";
@@ -472,28 +494,67 @@ function onRegister(){
   const u = $("username").value.trim();
   const p = $("password").value;
 
-  token = "fake_"+u;
+  if(!u || !p){
+    setStatus("Username and password required", "error");
+    appendLog("Register failed: missing fields");
+    return;
+  }
+
+  const users = loadUsers();
+  if(users[u]){
+    setStatus("Username already exists", "error");
+    appendLog("Register failed: username exists");
+    return;
+  }
+
+  // Save user (demo only)
+  users[u] = p;
+  saveUsers(users);
+
+  // Auto-login after register
+  token = "demo_token_" + u + "_" + Date.now();
   currentUser = u;
   isGuest = false;
 
-  localStorage.setItem("bb_token",token);
-  localStorage.setItem("bb_user",u);
+  localStorage.setItem("bb_token", token);
+  localStorage.setItem("bb_user", currentUser);
 
   refreshAuth();
-  setStatus("Registered","ok");
+  setStatus("Registered & logged in", "ok");
+  appendLog(`User registered: ${u}`);
+  // clear password field for UX
+  $("password").value = "";
 }
 
 function onLogin(){
   const u = $("username").value.trim();
-  token = "fake_"+u;
+  const p = $("password").value;
+
+  if(!u || !p){
+    setStatus("Enter username and password", "error");
+    appendLog("Login failed: missing fields");
+    return;
+  }
+
+  const users = loadUsers();
+  if(!users[u] || users[u] !== p){
+    setStatus("Invalid username or password", "error");
+    appendLog("Login failed: invalid credentials");
+    return;
+  }
+
+  token = "demo_token_" + u + "_" + Date.now();
   currentUser = u;
   isGuest = false;
 
-  localStorage.setItem("bb_token",token);
-  localStorage.setItem("bb_user",u);
+  localStorage.setItem("bb_token", token);
+  localStorage.setItem("bb_user", currentUser);
 
   refreshAuth();
-  setStatus("Logged in","ok");
+  setStatus("Logged in", "ok");
+  appendLog(`User logged in: ${u}`);
+  // clear password field for UX
+  $("password").value = "";
 }
 
 function onGuest(){
@@ -501,23 +562,25 @@ function onGuest(){
   token = "";
   currentUser = "guest";
 
-  localStorage.setItem("bb_user","guest");
-  localStorage.setItem("bb_token","");
+  localStorage.setItem("bb_user", "guest");
+  localStorage.setItem("bb_token", "");
 
   refreshAuth();
   setStatus("Guest mode active","ok");
+  appendLog("Guest session started");
 }
 
 function onLogout(){
-  token="";
-  currentUser="";
-  isGuest=false;
+  token = "";
+  currentUser = "";
+  isGuest = false;
 
   localStorage.removeItem("bb_token");
   localStorage.removeItem("bb_user");
 
   refreshAuth();
   setStatus("Logged out","info");
+  appendLog("User logged out");
 }
 
 /* ------------------------------
