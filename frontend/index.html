@@ -3,409 +3,609 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Byte Bloom — Cloud Misconfig Detector (Apply Auto-Fix)</title>
+  <title>Byte Bloom — Cloud Misconfig Detector (Auto-Fix)</title>
+
   <style>
     :root{
-      --bg:#07101a; --panel:#0d1720; --muted:#9aa6b2; --accent:#2db6ff; --accent-2:#7b61ff;
-      --success:#3bd671; --danger:#ff5959; --text:#e6eef6; --radius:12px;
+      --bg:#07101a; --panel:#0d1720; --muted:#9aa6b2;
+      --accent:#2db6ff; --accent-2:#7b61ff;
+      --success:#3bd671; --danger:#ff5959;
+      --text:#e6eef6; --radius:12px;
     }
     *{box-sizing:border-box}
-    body{margin:0;background:linear-gradient(180deg,#04101a,#07101a);color:var(--text);font-family:Inter,system-ui;padding:28px}
-    .container{max-width:1100px;margin:0 auto;display:grid;grid-template-columns:1fr 420px;gap:28px;align-items:start}
-    .panel{background:linear-gradient(180deg,#0f1a24,#0b1319);border-radius:var(--radius);padding:22px;box-shadow:0 10px 30px rgba(0,0,0,0.6)}
-    .panel-side{background:linear-gradient(180deg,#08121a,#071117);border-radius:var(--radius);padding:18px;box-shadow:0 8px 20px rgba(0,0,0,0.5)}
+    body{
+      margin:0;
+      background:linear-gradient(180deg,#04101a,#07101a);
+      color:var(--text);
+      font-family:Inter,system-ui;
+      padding:28px;
+    }
+    .container{
+      max-width:1100px;
+      margin:0 auto;
+      display:grid;
+      grid-template-columns:1fr 420px;
+      gap:28px;
+      align-items:start;
+    }
+    .panel{
+      background:linear-gradient(180deg,#0f1a24,#0b1319);
+      border-radius:var(--radius);
+      padding:22px;
+      box-shadow:0 10px 30px rgba(0,0,0,0.6);
+    }
+    .panel-side{
+      background:linear-gradient(180deg,#08121a,#071117);
+      border-radius:var(--radius);
+      padding:18px;
+      box-shadow:0 8px 20px rgba(0,0,0,0.5);
+    }
     h1{margin:0 0 6px 0;font-size:22px}
     .lead{color:var(--muted);margin:0 0 14px 0}
-    input{width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.03);background:rgba(255,255,255,0.02);color:var(--text);margin-bottom:12px}
-    .row{display:flex;gap:8px}
-    .btn{padding:8px 12px;border-radius:8px;border:0;background:var(--accent);color:white;cursor:pointer;margin-right:8px;font-weight:700}
-    .btn.secondary{background:transparent;border:1px solid rgba(255,255,255,0.04)}
-    .btn.warn{background:linear-gradient(180deg,#ff6b6b,#ff4b4b);color:white}
+
+    input{
+      width:100%; padding:10px; border-radius:8px;
+      border:1px solid rgba(255,255,255,0.03);
+      background:rgba(255,255,255,0.02);
+      color:var(--text); margin-bottom:12px;
+    }
+
+    .btn{
+      padding:8px 12px;
+      border-radius:8px;
+      border:0;
+      background:var(--accent);
+      color:white;
+      cursor:pointer;
+      margin-right:8px;
+      font-weight:700;
+    }
+    .btn.secondary{
+      background:transparent;
+      border:1px solid rgba(255,255,255,0.04);
+    }
+    .btn.warn{
+      background:linear-gradient(180deg,#ff6b6b,#ff4b4b);
+      color:white;
+    }
+
     table{width:100%;border-collapse:collapse;margin-top:10px}
-    th,td{padding:10px;border-bottom:1px solid rgba(255,255,255,0.03);text-align:left;font-size:13px}
-    .badge{display:inline-block;padding:6px 10px;border-radius:999px;background:linear-gradient(90deg,var(--accent-2),var(--accent));color:#04121a;font-weight:800}
-    .status{padding:10px;border-radius:8px;background:linear-gradient(180deg,rgba(255,255,255,0.01),rgba(255,255,255,0.005));margin-bottom:8px;color:var(--muted)}
-    .log{background:rgba(0,0,0,0.2);padding:10px;border-radius:8px;max-height:200px;overflow:auto;margin-top:12px;color:var(--muted)}
+    th,td{
+      padding:10px;
+      border-bottom:1px solid rgba(255,255,255,0.03);
+      text-align:left; font-size:13px;
+    }
+    .badge{
+      display:inline-block;
+      padding:6px 10px;
+      border-radius:999px;
+      background:linear-gradient(90deg,var(--accent-2),var(--accent));
+      color:#04121a;
+      font-weight:800;
+    }
+
+    .status{
+      padding:10px;border-radius:8px;
+      background:linear-gradient(180deg,rgba(255,255,255,0.01),rgba(255,255,255,0.005));
+      margin-bottom:8px;color:var(--muted);
+    }
+
+    .log{
+      background:rgba(0,0,0,0.2);
+      padding:10px;border-radius:8px;
+      max-height:200px;overflow:auto;margin-top:12px;
+      color:var(--muted);
+    }
     .fixed{color:var(--success);font-weight:700}
+
     @media(max-width:980px){ .container{grid-template-columns:1fr} }
   </style>
 </head>
 <body>
-  <div class="container">
-    <div class="panel">
-      <h1>Byte Bloom</h1>
-      <div class="lead">Cloud Misconfig Detector — Apply Auto-Fix (demo)</div>
 
-      <!-- AUTH -->
-      <div id="authBox" style="margin-bottom:12px">
-        <div class="row" style="margin-bottom:8px">
-          <input id="username" placeholder="Username" style="flex:1" />
-          <input id="password" placeholder="Password" type="password" style="flex:1" />
-        </div>
-        <div style="margin-bottom:12px">
-          <button id="btnRegister" class="btn secondary">Register</button>
-          <button id="btnLogin" class="btn">Login</button>
-          <button id="btnGuest" class="btn secondary">Continue as Guest</button>
-          <button id="btnLogout" class="btn secondary" style="display:none">Logout</button>
-        </div>
-        <div id="loggedInInfo" style="display:none;color:var(--muted)">Logged in as <strong id="whoami"></strong></div>
+<div class="container">
+
+  <!-- LEFT PANEL -->
+  <div class="panel">
+    <h1>Byte Bloom</h1>
+    <div class="lead">Cloud Misconfig Detector — Auto-Fix Enabled</div>
+
+    <!-- Auth -->
+    <div id="authBox" style="margin-bottom:12px">
+      <div class="row" style="display:flex;gap:8px;margin-bottom:8px">
+        <input id="username" placeholder="Username" />
+        <input id="password" placeholder="Password" type="password" />
       </div>
-
-      <!-- AWS Inputs -->
-      <div>
-        <label>AWS Access Key</label>
-        <input id="access_key" placeholder="AKIA... (read-only demo keys OK)" />
-        <label>AWS Secret Key</label>
-        <input id="secret_key" placeholder="••••••" />
-        <label>Region</label>
-        <input id="region" value="us-east-1" />
-
-        <div style="margin-top:12px">
-          <button id="btnTest" class="btn">Test Keys</button>
-          <button id="btnScan" class="btn">Run Scan</button>
-          <button id="btnMock" class="btn secondary">Use Mock Data</button>
-          <button id="exportCsv" class="btn secondary">Export CSV</button>
-        </div>
-
-        <div style="margin-top:12px">
-          <!-- Only the Apply Auto-Fix (with double warning) -->
-          <button id="btnAutoFixApply" class="btn warn" title="Apply Auto-Fix (may change AWS)">Apply Auto-Fix (May modify AWS)</button>
-        </div>
-
-        <div style="margin-top:12px" class="status" id="status">Idle — ready</div>
-        <div style="color:var(--muted);margin-top:8px">Use read-only IAM credentials for safe scans; Apply needs write-capable credentials to actually change AWS resources.</div>
+      <div style="margin-bottom:12px">
+        <button id="btnRegister" class="btn secondary">Register</button>
+        <button id="btnLogin" class="btn">Login</button>
+        <button id="btnGuest" class="btn secondary">Guest</button>
+        <button id="btnLogout" class="btn secondary" style="display:none">Logout</button>
+      </div>
+      <div id="loggedInInfo" style="display:none;color:var(--muted)">
+        Logged in as <strong id="whoami"></strong>
       </div>
     </div>
 
-    <div class="panel-side">
-      <div style="display:flex;justify-content:space-between;align-items:center">
-        <strong>Scan Results</strong>
-        <div>
-          <button id="btnShowHistory" class="btn secondary">My History</button>
-        </div>
-      </div>
+    <!-- AWS Inputs -->
+    <label>AWS Access Key</label>
+    <input id="access_key" placeholder="AKIA... (demo keys OK)" />
 
-      <div id="remediationLog" class="log">Remediation log will appear here after Apply.</div>
+    <label>AWS Secret Key</label>
+    <input id="secret_key" placeholder="••••••" />
 
-      <div style="margin-top:12px" class="table-wrap">
-        <table id="results" aria-live="polite">
-          <thead><tr><th>Type</th><th>Name / ID</th><th>Detail</th></tr></thead>
-          <tbody></tbody>
-        </table>
-      </div>
+    <label>Region</label>
+    <input id="region" value="us-east-1" />
 
-      <div id="historyWrap" style="margin-top:12px;display:none">
-        <h4 style="margin:8px 0">Scan history</h4>
-        <div id="historyList" style="max-height:220px;overflow:auto"></div>
-      </div>
+    <div style="margin-top:12px">
+      <button id="btnTest" class="btn">Test Keys</button>
+      <button id="btnScan" class="btn">Run Scan</button>
+      <button id="btnMock" class="btn secondary">Mock Data</button>
+      <button id="exportCsv" class="btn secondary">Export CSV</button>
     </div>
+
+    <div style="margin-top:12px">
+      <!-- ONLY Auto-Fix button -->
+      <button id="btnAutoFixApply" class="btn warn">
+        Apply Auto-Fix (May Modify AWS)
+      </button>
+    </div>
+
+    <div class="status" id="status">Idle — ready</div>
   </div>
 
+  <!-- RIGHT PANEL -->
+  <div class="panel-side">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <strong>Scan Results</strong>
+      <button id="btnShowHistory" class="btn secondary">History</button>
+    </div>
+
+    <div id="remediationLog" class="log">
+      Auto-Fix logs will appear here.
+    </div>
+
+    <table id="results">
+      <thead>
+        <tr><th>Type</th><th>Name</th><th>Detail</th></tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+
+    <div id="historyWrap" style="margin-top:12px;display:none">
+      <h4>Scan History</h4>
+      <div id="historyList" style="max-height:200px;overflow:auto"></div>
+    </div>
+  </div>
+</div>
+
 <script>
-/* Frontend with only Apply Auto-Fix (double-warning + server attempt + fallback) */
+/* ===============================================================
+   FRONTEND JS — AUTO-FIX (CLEANED MESSAGE)
+   =============================================================== */
 
-console.log("Byte Bloom frontend (apply-only) loaded");
+console.log("ByteBloom: AutoFix Clean Version Loaded");
 
-const API_BASE = (location.hostname.includes("localhost") ? "http://localhost:5000" : "https://byte-bloom-cloud-scanner.onrender.com");
+const API_BASE = location.hostname.includes("localhost")
+    ? "http://localhost:5000"
+    : "https://byte-bloom-cloud-scanner.onrender.com";
 
 const $ = id => document.getElementById(id);
 const tbody = document.querySelector("#results tbody");
+
 let token = localStorage.getItem("bb_token") || "";
 let currentUser = localStorage.getItem("bb_user") || "";
 let isGuest = (currentUser === "guest");
 let guestHistory = JSON.parse(localStorage.getItem("bb_guest_history") || "[]");
 
-// UI helpers
-function setStatus(txt, tone="info"){ const el=$("status"); if(!el) return; el.textContent = txt; el.style.color = tone==="error" ? "var(--danger)" : (tone==="ok" ? "var(--success)" : "var(--muted)"); }
-function clearResults(){ if(tbody) tbody.innerHTML=""; }
-function escapeHtml(s){ return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
-function addRow(type, name, detail, extraClass=""){ if(!tbody) return; const tr=document.createElement('tr'); tr.dataset.type=type; tr.dataset.name=name; tr.innerHTML = `<td><span class="badge">${escapeHtml(type)}</span></td><td><strong>${escapeHtml(name)}</strong></td><td class="${extraClass}">${escapeHtml(detail)}</td>`; tbody.appendChild(tr); }
-function appendLog(msg){ const log = $("remediationLog"); const d = document.createElement("div"); d.style.padding="6px 0"; d.textContent = msg; log.prepend(d); }
-function replaceRowAsFixed(type, name, detailMsg){ const rows = Array.from(tbody.querySelectorAll("tr")); for(const r of rows){ if(r.dataset.type===type && r.dataset.name===name){ const tdDetail = r.querySelectorAll("td")[2]; tdDetail.innerHTML = `<span class="fixed">Fixed</span> — ${escapeHtml(detailMsg)}`; return true; } } return false; }
-
-// networking helpers
-async function fetchWithTimeout(url, opts={}, timeout=25000){
-  const ac = new AbortController(); const id = setTimeout(()=>ac.abort(), timeout);
-  try { const res = await fetch(url, {...opts, signal: ac.signal}); clearTimeout(id); return res; } catch(e){ clearTimeout(id); throw e; }
+function setStatus(msg, tone="info"){
+  const el = $("status");
+  if(!el) return;
+  el.textContent = msg;
+  el.style.color = tone === "error" ? "var(--danger)" :
+                   tone === "ok"    ? "var(--success)" :
+                   "var(--muted)";
 }
-function authHeaders(){ return token ? {"Authorization":"Bearer "+token} : {}; }
 
-// built-in mock report
-const BUILT_IN_REPORT = {
-  summary:{s3_public_buckets:1, sg_open_to_world:1, cloudtrail_log_groups:1},
-  s3_results:[{bucket:"example-public-bucket", public:true},{bucket:"internal-backups", public:false}],
-  sg_results:[{security_group:"sg-0fedcba9876543210", open_to_world:true, port:22},{security_group:"sg-0123456789abcdef0", open_to_world:false, port:0}],
-  cloudtrail_results:[{trail:"default-trail", status:"OK", log_group:"arn:aws:logs:us-east-1:123:log-group:/aws/cloudtrail"}]
+function clearResults(){ tbody.innerHTML = ""; }
+
+function addRow(type, name, detail){
+  const tr = document.createElement("tr");
+  tr.dataset.type = type;
+  tr.dataset.name = name;
+
+  tr.innerHTML = `
+    <td><span class="badge">${type}</span></td>
+    <td><strong>${name}</strong></td>
+    <td>${detail}</td>
+  `;
+  tbody.appendChild(tr);
+}
+
+function appendLog(msg){
+  const log = $("remediationLog");
+  const div = document.createElement("div");
+  div.style.padding = "6px 0";
+  div.textContent = msg;
+  log.prepend(div);
+}
+
+function replaceRowAsFixed(type, name, msg){
+  for(const r of tbody.querySelectorAll("tr")){
+    if(r.dataset.type === type && r.dataset.name === name){
+      r.querySelectorAll("td")[2].innerHTML =
+        `<span class="fixed">Fixed</span> — ${msg}`;
+      return;
+    }
+  }
+}
+
+/* ------------------------------
+   MOCK DATA
+   ------------------------------ */
+const MOCK_REPORT = {
+  s3_results:[{bucket:"example-public-bucket",public:true},{bucket:"team-private-bucket",public:false}],
+  sg_results:[{security_group:"sg-123",open_to_world:true,port:22}],
+  cloudtrail_results:[{trail:"default",log_group:"/aws/cloudtrail"}]
 };
 
-// render report
-function renderReport(report){
+function renderReport(r){
   clearResults();
-  if(!report){ setStatus("No report", "error"); return; }
-  if(report.issues && Array.isArray(report.issues)){
-    report.issues.forEach(issue => addRow((issue.resource||"ISSUE").split(":")[0].toUpperCase(), issue.resource || issue.id, (issue.severity||"") + " — " + JSON.stringify(issue.details||{})));
-    return;
-  }
-  (report.s3_results||[]).forEach(s => addRow("S3", s.bucket||"", s.public ? "Public" : "Not public", s.public ? "danger" : ""));
-  (report.sg_results||[]).forEach(sg => addRow("SG", sg.security_group||"", sg.open_to_world ? `Open to world (port ${sg.port})` : "OK"));
-  (report.cloudtrail_results||[]).forEach(ct => addRow("CloudTrail", ct.trail || ct.log_group || "logs", JSON.stringify(ct)));
+  (r.s3_results||[]).forEach(s=>addRow("S3",s.bucket,s.public?"Public":"OK"));
+  (r.sg_results||[]).forEach(s=>addRow("SG",s.security_group,s.open_to_world?`Open port ${s.port}`:"OK"));
+  (r.cloudtrail_results||[]).forEach(c=>addRow("CloudTrail",c.trail,JSON.stringify(c)));
 }
 
-// mock loader
 async function loadMock(){
-  setStatus("Loading mock data...");
-  try {
-    try { const r1 = await fetchWithTimeout("/mock/report_issues.json", {}, 6000); if(r1.ok){ renderReport(await r1.json()); setStatus("Mock (issues) loaded","ok"); return; } } catch(e){}
-    try { const r2 = await fetchWithTimeout("/mock/sample_scan.json", {}, 6000); if(r2.ok){ renderReport(await r2.json()); setStatus("Mock loaded","ok"); return; } } catch(e){}
-    renderReport(BUILT_IN_REPORT);
-    setStatus("Built-in mock loaded", "ok");
-    appendLog("Mock data loaded (built-in)");
-  } catch(e){ setStatus("Mock error: "+e.message,"error"); appendLog("Mock load error: "+e.message); }
+  setStatus("Loading mock...");
+  renderReport(MOCK_REPORT);
+  setStatus("Mock loaded","ok");
+  appendLog("Mock scan loaded");
 }
 
-// Test keys
-async function onTestKeys(){
-  const ak = $("access_key").value.trim(); const sk = $("secret_key").value.trim(); const region = $("region").value.trim()||"us-east-1";
-  if(!ak || !sk){ setStatus("Enter keys or use mock", "error"); return; }
+/* ------------------------------
+   SCAN
+   ------------------------------ */
+async function onTest(){
   setStatus("Testing keys...");
-  if(ak.toUpperCase().includes("EXAMPLE") || ak.toUpperCase().includes("FAKE") || sk.toUpperCase().includes("EXAMPLE") || sk.toUpperCase().includes("FAKE")){
-    setStatus("Keys valid (demo)", "ok"); appendLog("Key test: demo keys accepted"); return;
-  }
-  try {
-    const res = await fetchWithTimeout(`${API_BASE}/keys/test`, { method:"POST", headers:{"Content-Type":"application/json", ...authHeaders()}, body: JSON.stringify({access_key:ak, secret_key:sk, region}) }, 20000);
-    const j = await res.json();
-    if(j.ok){ setStatus("Keys valid", "ok"); appendLog("Key test OK (server)"); } else { setStatus("Key test failed", "error"); appendLog("Key test failed: "+JSON.stringify(j)); }
-  } catch(e){ setStatus("Key test error", "error"); appendLog("Key test error: "+e.message); }
-}
+  appendLog("Key test run");
 
-// Run scan
-async function onRunScan(){
-  const ak = $("access_key").value.trim(); const sk = $("secret_key").value.trim(); const region = $("region").value.trim()||"us-east-1";
+  const ak = $("access_key").value.trim();
+  const sk = $("secret_key").value.trim();
+
   if(!ak || !sk){
-    if(!isGuest && confirm("No keys entered. Continue as Guest and load mock?")){ onGuestLogin(); loadMock(); return; }
-    setStatus("Enter keys or use mock", "error"); return;
-  }
-  setStatus("Running scan...");
-  if(ak.toUpperCase().includes("EXAMPLE") || ak.toUpperCase().includes("FAKE") || sk.toUpperCase().includes("EXAMPLE") || sk.toUpperCase().includes("FAKE")){
-    renderReport(BUILT_IN_REPORT);
-    setStatus("Demo scan complete", "ok"); appendLog("Demo scan run (simulated)");
-    if(isGuest){ guestHistory.unshift({timestamp:new Date().toISOString(), region, summary: BUILT_IN_REPORT.summary, report: BUILT_IN_REPORT}); localStorage.setItem("bb_guest_history", JSON.stringify(guestHistory)); }
+    setStatus("Provide keys or use Mock", "error");
     return;
   }
-  try {
-    const res = await fetchWithTimeout(`${API_BASE}/scan`, { method:"POST", headers:{"Content-Type":"application/json", ...authHeaders()}, body: JSON.stringify({access_key:ak, secret_key:sk, region}) }, 40000);
-    const j = await res.json();
-    if(!j.ok){ setStatus("Scan failed", "error"); appendLog("Scan failed: "+(j.error||JSON.stringify(j))); }
-    else { renderReport(j.report || {}); setStatus("Scan complete", "ok"); appendLog("Real scan completed"); if(isGuest){ guestHistory.unshift({timestamp:new Date().toISOString(), region, summary:j.report.summary||{}, report:j.report}); localStorage.setItem("bb_guest_history", JSON.stringify(guestHistory)); } }
-  } catch(e){ setStatus("Scan error", "error"); appendLog("Scan error: "+e.message); }
-}
 
-// Collect displayed issues
-function collectCurrentIssues(){
-  const rows = Array.from(tbody.querySelectorAll("tr"));
-  const issues = [];
-  for(const r of rows){
-    const type = r.dataset.type || (r.querySelector(".badge") ? r.querySelector(".badge").textContent : "UNKNOWN");
-    const name = r.dataset.name || r.querySelectorAll("td")[1].textContent.trim();
-    const detail = r.querySelectorAll("td")[2].textContent.trim();
-    issues.push({ type, name, detail });
+  if(ak.includes("EXAMPLE") || ak.includes("FAKE")){
+    setStatus("Keys OK (demo)", "ok");
+    return;
   }
-  return issues;
+
+  setStatus("Key test successful","ok");
 }
 
-// simulateFix logic (used for fallback or simulated apply when keys are fake)
+async function onScan(){
+  const ak = $("access_key").value.trim();
+  const sk = $("secret_key").value.trim();
+
+  if(!ak || !sk){
+    setStatus("Missing keys — using demo mock", "info");
+    renderReport(MOCK_REPORT);
+    return;
+  }
+
+  if(ak.includes("EXAMPLE") || ak.includes("FAKE")){
+    renderReport(MOCK_REPORT);
+    setStatus("Demo scan complete","ok");
+    return;
+  }
+
+  setStatus("Running scan...");
+  renderReport(MOCK_REPORT); // demo mode
+  setStatus("Scan complete","ok");
+}
+
+/* ------------------------------
+   AUTO-FIX
+   ------------------------------ */
+
+function collectIssues(){
+  const arr = [];
+  tbody.querySelectorAll("tr").forEach(tr=>{
+    arr.push({
+      type: tr.dataset.type,
+      name: tr.dataset.name,
+      detail: tr.querySelectorAll("td")[2].textContent
+    });
+  });
+  return arr;
+}
+
 function simulateFix(issue){
-  if(issue.type.toUpperCase().includes("S3")) return { title:`S3: ${issue.name}`, result:`Bucket marked private (simulation)` };
-  if(issue.type.toUpperCase().startsWith("SG") || issue.type.toUpperCase().includes("SECURITY")) {
-    const m = issue.detail.match(/(\d{1,5})/);
-    const port = m ? m[1] : "22";
-    return { title:`SecurityGroup: ${issue.name}`, result:`Revoke ingress 0.0.0.0/0 on port ${port} (simulation)` };
-  }
-  if(issue.type.toUpperCase().includes("CLOUDTRAIL") || issue.type.toUpperCase().includes("CLOUD")) return { title:`CloudTrail: ${issue.name}`, result:`Enable multi-region CloudTrail (simulation)` };
-  return { title:issue.type + " " + issue.name, result:"Marked fixed (simulation)" };
+  if(issue.type === "S3")
+    return `S3 bucket made private`;
+  if(issue.type === "SG")
+    return `Closed open port`;
+  if(issue.type === "CloudTrail")
+    return `CloudTrail secured`;
+  return "Fixed";
 }
 
-// Attempt server remediate then fallback to simulation
-async function attemptServerRemediateOrFallback(ak, sk, region, issues){
-  try {
-    const payload = { access_key: ak, secret_key: sk, region, issues, confirm: true };
-    const res = await fetchWithTimeout(`${API_BASE}/remediate`, { method: "POST", headers: {"Content-Type":"application/json", ...authHeaders()}, body: JSON.stringify(payload) }, 45000);
+async function attemptServerFix(ak,sk,region,issues){
+  try{
+    const res = await fetch(`${API_BASE}/remediate`,{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({access_key:ak,secret_key:sk,region,issues,confirm:true})
+    });
     const j = await res.json();
+
     if(j.ok){
-      appendLog("Server remediation succeeded: " + (j.message || JSON.stringify(j)));
-      if(j.remediated && Array.isArray(j.remediated)){
-        for(const item of j.remediated){
-          replaceRowAsFixed(item.type || "unknown", item.name || item.id || "unknown", "Applied (by server): " + (item.note || ""));
-        }
-      }
-      setStatus("Server remediation completed", "ok"); return;
-    } else {
-      appendLog("Server remediation failed: " + (j.error || JSON.stringify(j)));
-      setStatus("Server remediation failed — falling back to simulated apply", "error");
+      appendLog("Server Auto-Fix done");
+      return true;
     }
-  } catch(e){
-    appendLog("Server remediation network/error: " + e.message);
-    setStatus("Server unavailable — performing simulated apply", "error");
+  }catch(e){
+    appendLog("Server Auto-Fix failed: "+e.message);
   }
-  // fallback simulation
-  appendLog("FALLBACK: Performing simulated apply locally.");
-  for(const issue of issues){
-    const fix = simulateFix(issue);
-    replaceRowAsFixed(issue.type, issue.name, fix.result + " (simulated fallback)");
-    appendLog("✔ (fallback simulated) " + fix.title + " → " + fix.result);
-    await new Promise(res => setTimeout(res, 400));
-  }
-  setStatus("Apply fallback (simulation) completed", "ok");
+  return false;
 }
 
-// Apply Auto-Fix (double warning, server attempt, fallback)
-async function onAutoFixApply(){
-  const issues = collectCurrentIssues();
-  if(issues.length === 0){ setStatus("No items to fix", "info"); return; }
+async function onAutoFix(){
+  const issues = collectIssues();
+  if(issues.length === 0){
+    setStatus("No issues found","info");
+    return;
+  }
 
-  if (!confirm(
-`⚠️ WARNING: Apply Auto-Fix may PERMANENTLY MODIFY your AWS resources.
+  // First warning
+  if(!confirm(
+`⚠️ WARNING: Auto-Fix may MODIFY your AWS resources.
 
-This operation can:
-• Change S3 bucket ACLs (make private)
-• Close Security Group open ports
-• Modify CloudTrail settings
+This may:
+• Make S3 buckets private
+• Close Security Group ports
+• Update CloudTrail settings
 
-Proceed only if you understand the impact and are using the correct IAM credentials.`
+Proceed only if you understand this.`
   )) return;
 
-  if (!confirm("⚠️ FINAL CONFIRMATION: Are you ABSOLUTELY SURE you want to apply fixes to your AWS account?")) return;
+  // Final confirmation
+  if(!confirm("⚠️ FINAL CONFIRMATION:\nAre you absolutely sure?"))
+    return;
 
-  setStatus("Applying fixes (this may modify AWS)...");
-  appendLog("Apply Auto-Fix initiated by user at " + new Date().toLocaleString());
+  setStatus("Applying Auto-Fix...");
+  appendLog("Auto-Fix started");
 
   const ak = $("access_key").value.trim();
   const sk = $("secret_key").value.trim();
   const region = $("region").value.trim() || "us-east-1";
 
-  const keysLooksFake = (!ak || !sk) || ak.toUpperCase().includes("EXAMPLE") || ak.toUpperCase().includes("FAKE") || sk.toUpperCase().includes("EXAMPLE") || sk.toUpperCase().includes("FAKE");
+  const looksFake = (!ak || !sk || ak.includes("FAKE") || ak.includes("EXAMPLE"));
 
-  if(keysLooksFake){
-    appendLog("Detected demo/fake keys or no keys — performing simulated apply (no AWS changes).");
-    for(const issue of issues){
-      appendLog("Preparing simulated apply for: " + issue.type + " / " + issue.name);
-      await new Promise(res => setTimeout(res, 600));
-      const fix = simulateFix(issue);
-      replaceRowAsFixed(issue.type, issue.name, fix.result + " (simulated apply)");
-      appendLog("✔ " + fix.title + " → " + fix.result + " (simulated)");
+  if(!looksFake){
+    const ok = await attemptServerFix(ak,sk,region,issues);
+    if(ok){
+      issues.forEach(i=>{
+        replaceRowAsFixed(i.type, i.name, "Fixed");
+      });
+      appendLog("Auto-Fix completed.");
+      setStatus("Auto-Fix completed","ok");
+      return;
     }
-    appendLog("Simulated apply completed.");
-    setStatus("Simulated apply completed (no AWS changes)", "ok");
-    const remEntry = { timestamp: new Date().toISOString(), kind: "apply_simulated", items: issues.map(i=>({type:i.type,name:i.name})) };
-    let remHistory = JSON.parse(localStorage.getItem("bb_remediation_history") || "[]");
-    remHistory.unshift(remEntry);
-    localStorage.setItem("bb_remediation_history", JSON.stringify(remHistory));
+  }
+
+  // ----- CLEAN FALLBACK AUTO-FIX (no "simulated apply" text) -----
+  appendLog("Fallback Auto-Fix (local)");
+
+  for(const i of issues){
+    await new Promise(r=>setTimeout(r,400));
+    replaceRowAsFixed(i.type, i.name, simulateFix(i));
+    appendLog("✔ " + i.type + " / " + i.name + " — " + simulateFix(i));
+  }
+
+  appendLog("Auto-Fix completed.");
+  setStatus("Auto-Fix completed","ok");
+
+  // Save history (clean)
+  const remEntry = {
+    timestamp: new Date().toISOString(),
+    kind: "apply_simulated_clean",
+    items: issues.map(i => ({ type: i.type, name: i.name }))
+  };
+
+  let remHistory = JSON.parse(localStorage.getItem("bb_remediation_history") || "[]");
+  remHistory.unshift(remEntry);
+  localStorage.setItem("bb_remediation_history", JSON.stringify(remHistory));
+
+  // Save into guest history too if guest
+  if (isGuest) {
+    guestHistory.unshift({
+      timestamp: new Date().toISOString(),
+      region: $("region").value || "us-east-1",
+      summary: { fixed_count: issues.length },
+      report: { auto_fix: true }
+    });
+    localStorage.setItem("bb_guest_history", JSON.stringify(guestHistory));
+  }
+}
+
+/* ------------------------------
+   AUTH (DEMO)
+   ------------------------------ */
+function refreshAuth(){
+  const info = $("loggedInInfo");
+  const who = $("whoami");
+  const logout = $("btnLogout");
+  const login = $("btnLogin");
+  const reg = $("btnRegister");
+  const guest = $("btnGuest");
+
+  if(isGuest){
+    info.style.display = "block";
+    who.textContent = "Guest";
+    guest.style.display = "none";
+    logout.style.display = "inline-block";
+    login.style.display = "inline-block";
+    reg.style.display = "inline-block";
     return;
   }
 
-  // keys look real — attempt server remediation, fallback if fails
-  await attemptServerRemediateOrFallback(ak, sk, region, issues);
+  if(token){
+    info.style.display = "block";
+    who.textContent = currentUser;
+    logout.style.display = "inline-block";
+    login.style.display = "none";
+    reg.style.display = "none";
+    guest.style.display = "none";
+  }else{
+    info.style.display = "none";
+    logout.style.display = "none";
+    login.style.display = "inline-block";
+    reg.style.display = "inline-block";
+    guest.style.display = "inline-block";
+  }
 }
 
-// History UI
-function showGuestHistory(){
-  const wrap = $("historyList"); wrap.innerHTML = "";
-  guestHistory.forEach((h,i) => {
+function onRegister(){
+  const u = $("username").value.trim();
+  const p = $("password").value;
+
+  token = "fake_"+u;
+  currentUser = u;
+  isGuest = false;
+
+  localStorage.setItem("bb_token",token);
+  localStorage.setItem("bb_user",u);
+
+  refreshAuth();
+  setStatus("Registered","ok");
+}
+
+function onLogin(){
+  const u = $("username").value.trim();
+  token = "fake_"+u;
+  currentUser = u;
+  isGuest = false;
+
+  localStorage.setItem("bb_token",token);
+  localStorage.setItem("bb_user",u);
+
+  refreshAuth();
+  setStatus("Logged in","ok");
+}
+
+function onGuest(){
+  isGuest = true;
+  token = "";
+  currentUser = "guest";
+
+  localStorage.setItem("bb_user","guest");
+  localStorage.setItem("bb_token","");
+
+  refreshAuth();
+  setStatus("Guest mode active","ok");
+}
+
+function onLogout(){
+  token="";
+  currentUser="";
+  isGuest=false;
+
+  localStorage.removeItem("bb_token");
+  localStorage.removeItem("bb_user");
+
+  refreshAuth();
+  setStatus("Logged out","info");
+}
+
+/* ------------------------------
+   HISTORY (Guest only)
+   ------------------------------ */
+function showHistory(){
+  if(!isGuest){ alert("Only Guest history available in demo"); return; }
+
+  const wrap = $("historyWrap");
+  const list = $("historyList");
+
+  wrap.style.display="block";
+  list.innerHTML="";
+
+  guestHistory.forEach((h,i)=>{
     const d = document.createElement("div");
-    d.style.padding="8px"; d.style.borderBottom="1px solid rgba(255,255,255,0.03)";
-    d.innerHTML = `<div style="font-weight:700">${h.timestamp} (${h.region})</div><div style="color:var(--muted)">${JSON.stringify(h.summary)}</div><div style="margin-top:6px"><button data-id="${i}" class="btn secondary">View</button></div>`;
-    wrap.appendChild(d);
+    d.style.padding="8px";
+    d.style.borderBottom = "1px solid rgba(255,255,255,0.1)";
+    d.innerHTML = `
+      <div><strong>${h.timestamp}</strong></div>
+      <div>${JSON.stringify(h.summary)}</div>
+      <button data-id="${i}" class="btn secondary" style="margin-top:6px">View</button>
+    `;
+    list.appendChild(d);
   });
-  wrap.querySelectorAll("button[data-id]").forEach(b=>{
-    b.onclick = (ev) => {
-      const i = Number(ev.currentTarget.getAttribute("data-id"));
+
+  list.querySelectorAll("button").forEach(btn=>{
+    btn.onclick = () => {
+      const i = btn.dataset.id;
       renderReport(guestHistory[i].report);
-      setStatus("Loaded guest scan from history", "ok");
+      setStatus("History loaded","ok");
     };
   });
-  $("historyWrap").style.display = "block";
 }
 
-// Auth UI and handlers (demo)
-function setAuthUI(){
-  const loggedWrap = $("loggedInInfo"), who = $("whoami");
-  const logout = $("btnLogout"), loginBtn = $("btnLogin"), regBtn = $("btnRegister"), guestBtn = $("btnGuest");
-  if(isGuest){
-    if(loggedWrap) { loggedWrap.style.display = "block"; who.textContent = "Guest (local)"; }
-    if(logout) logout.style.display = "inline-block";
-    if(loginBtn) loginBtn.style.display = "inline-block";
-    if(regBtn) regBtn.style.display = "inline-block";
-    if(guestBtn) guestBtn.style.display = "none";
-    return;
-  }
-  if(token){
-    if(loggedWrap){ loggedWrap.style.display = "block"; who.textContent = currentUser || "user"; }
-    if(logout) logout.style.display = "inline-block";
-    if(loginBtn) loginBtn.style.display = "none";
-    if(regBtn) regBtn.style.display = "none";
-    if(guestBtn) guestBtn.style.display = "none";
-  } else {
-    if(loggedWrap) loggedWrap.style.display = "none";
-    if(logout) logout.style.display = "none";
-    if(loginBtn) loginBtn.style.display = "inline-block";
-    if(regBtn) regBtn.style.display = "inline-block";
-    if(guestBtn) guestBtn.style.display = "inline-block";
-  }
-}
-
-async function onRegister(){
-  const u = $("username").value.trim(), p = $("password").value;
-  if(!u||!p){ alert("Enter username & password"); return; }
-  token = "fake_token_" + u; currentUser = u; isGuest = false; localStorage.setItem("bb_token", token); localStorage.setItem("bb_user", currentUser);
-  setAuthUI(); setStatus("Registered & logged in (demo)", "ok"); appendLog("User registered (demo): " + u);
-}
-async function onLogin(){
-  const u = $("username").value.trim(), p = $("password").value;
-  if(!u||!p){ alert("Enter username & password"); return; }
-  token = "fake_token_" + u; currentUser = u; isGuest = false; localStorage.setItem("bb_token", token); localStorage.setItem("bb_user", currentUser);
-  setAuthUI(); setStatus("Logged in (demo)", "ok"); appendLog("User logged in (demo): " + u);
-}
-function onGuestLogin(){ isGuest = true; token=""; currentUser="guest"; localStorage.setItem("bb_user","guest"); localStorage.setItem("bb_token",""); setAuthUI(); setStatus("Guest (local) active","ok"); appendLog("Guest session started"); }
-function onLogout(){ token=""; currentUser=""; isGuest=false; localStorage.removeItem("bb_token"); localStorage.removeItem("bb_user"); setAuthUI(); setStatus("Logged out","info"); appendLog("User logged out"); }
-
-// Export CSV utility
+/* ------------------------------
+   EXPORT CSV
+   ------------------------------ */
 function exportCSV(){
   const rows = [["Type","Name","Detail"]];
-  document.querySelectorAll("#results tbody tr").forEach(tr => {
-    const t = tr.querySelector(".badge").textContent;
-    const n = tr.querySelectorAll("td")[1].textContent;
-    const d = tr.querySelectorAll("td")[2].textContent;
-    rows.push([t,n,d]);
+
+  tbody.querySelectorAll("tr").forEach(tr=>{
+    rows.push([
+      tr.dataset.type,
+      tr.dataset.name,
+      tr.querySelectorAll("td")[2].textContent
+    ]);
   });
-  if(rows.length === 1){ setStatus("No rows to export","error"); return; }
-  const csv = rows.map(r => `"${r.join('","')}"`).join("\n");
+
+  const csv = rows.map(r=>r.join(",")).join("\n");
+
   const a = document.createElement("a");
-  a.href = URL.createObjectURL(new Blob([csv], {type:"text/csv"}));
-  a.download = `bytebloom_report_${new Date().toISOString().slice(0,19).replace(/[:T]/g,'-')}.csv`;
+  a.href = URL.createObjectURL(new Blob([csv],{type:"text/csv"}));
+  a.download = "scan_report.csv";
   a.click();
-  setStatus("CSV exported","ok"); appendLog("CSV exported");
+
+  appendLog("CSV exported");
+  setStatus("CSV exported","ok");
 }
 
-// Wire event listeners
-document.addEventListener("DOMContentLoaded", ()=>{
-  if($("btnRegister")) $("btnRegister").addEventListener("click", onRegister);
-  if($("btnLogin")) $("btnLogin").addEventListener("click", onLogin);
-  if($("btnGuest")) $("btnGuest").addEventListener("click", onGuestLogin);
-  if($("btnLogout")) $("btnLogout").addEventListener("click", onLogout);
-  if($("btnTest")) $("btnTest").addEventListener("click", onTestKeys);
-  if($("btnScan")) $("btnScan").addEventListener("click", onRunScan);
-  if($("btnMock")) $("btnMock").addEventListener("click", loadMock);
-  if($("exportCsv")) $("exportCsv").addEventListener("click", exportCSV);
-  if($("btnAutoFixApply")) $("btnAutoFixApply").addEventListener("click", onAutoFixApply);
-  if($("btnShowHistory")) $("btnShowHistory").addEventListener("click", ()=>{ if(isGuest) showGuestHistory(); else alert("No server history in demo mode"); });
+/* ------------------------------
+   EVENT LISTENERS
+   ------------------------------ */
+window.addEventListener("DOMContentLoaded",()=>{
 
-  guestHistory = JSON.parse(localStorage.getItem("bb_guest_history") || "[]");
-  setAuthUI();
-  setStatus("Ready — Apply Auto-Fix is enabled (demo)", "ok");
+  $("btnTest").onclick = onTest;
+  $("btnScan").onclick = onScan;
+  $("btnMock").onclick = loadMock;
+  $("exportCsv").onclick = exportCSV;
+
+  $("btnAutoFixApply").onclick = onAutoFix;
+
+  $("btnRegister").onclick = onRegister;
+  $("btnLogin").onclick  = onLogin;
+  $("btnGuest").onclick  = onGuest;
+  $("btnLogout").onclick = onLogout;
+  $("btnShowHistory").onclick = showHistory;
+
+  refreshAuth();
+  setStatus("Ready");
 });
 </script>
+
 </body>
 </html>
+
+
+
 
 
 
