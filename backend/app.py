@@ -1,129 +1,111 @@
-import os, json
+# backend/app.py
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-from models import init_db, SessionLocal, User, Scan
-from auth import hash_password, verify_password, create_access_token, decode_access_token
-from cloud_scanner import scan_with_credentials
+import time
+import traceback
 
+# cloud scanner will be imported (defined separately)
+from cloud_scanner import scan_with_credentials, sample_mock_report
+
+# Simple demo auth functions in-file (no DB)
+FAKE_USERS = {
+    "demo_user": "demo12345",
+    "our_1st_demo": "password123",
+    "bytebloom": "cloudscan"
+}
+
+def login_user(username, password):
+    if username in FAKE_USERS and FAKE_USERS[username] == password:
+        return {"ok": True, "token": "fake_token_" + username, "username": username}
+    else:
+        return {"ok": False, "error": "Invalid"}
+
+def register_user(username, password):
+    # Add to fake DB
+    FAKE_USERS[username] = password
+    return {"ok": True, "token": "fake_token_" + username, "username": username}
+
+# Flask app
 app = Flask(__name__)
 CORS(app)
 
-init_db()
+@app.route("/", methods=["GET"])
+def index():
+    return jsonify({"status": "ok", "message": "Byte Bloom scanner backend (demo) is running."})
 
-def get_user_from_token(header):
-    if not header or " " not in header:
-        return None
-    token = header.split(" ", 1)[1]
-    payload = decode_access_token(token)
-    if not payload:
-        return None
-
-    db = SessionLocal()
-    user = db.query(User).filter(User.username == payload["sub"]).first()
-    db.close()
-    return user
-
-
-@app.get("/")
-def home():
-    return jsonify({"ok": True})
-
-
-@app.post("/auth/register")
-def register():
-    data = request.json
-    username = data["username"]
-    password = data["password"]
-
-    db = SessionLocal()
-    if db.query(User).filter(User.username == username).first():
-        return {"ok": False, "error": "Username exists"}, 400
-
-    u = User(username=username, hashed_password=hash_password(password))
-    db.add(u)
-    db.commit()
-    token = create_access_token({"sub": username})
-    db.close()
-    return {"ok": True, "token": token}
-
-
-@app.post("/auth/login")
+# Auth endpoints (demo)
+@app.route("/auth/login", methods=["POST"])
 def login():
-    data = request.json
-    username = data["username"]
-    password = data["password"]
+    data = request.get_json() or {}
+    username = data.get("username")
+    password = data.get("password")
+    if not username or not password:
+        return jsonify({"ok": False, "error": "Missing username/password"}), 400
+    resp = login_user(username, password)
+    if resp.get("ok"):
+        return jsonify(resp)
+    return jsonify(resp), 400
 
-    db = SessionLocal()
-    user = db.query(User).filter(User.username == username).first()
-    if not user or not verify_password(password, user.hashed_password):
-        return {"ok": False, "error": "Invalid"}, 400
+@app.route("/auth/register", methods=["POST"])
+def register():
+    data = request.get_json() or {}
+    username = data.get("username")
+    password = data.get("password")
+    if not username or not password:
+        return jsonify({"ok": False, "error": "Missing username/password"}), 400
+    resp = register_user(username, password)
+    return jsonify(resp)
 
-    token = create_access_token({"sub": username})
-    db.close()
-    return {"ok": True, "token": token}
+# Quick test endpoint to validate keys (minimal call)
+@app.route("/keys/test", methods=["POST"])
+def test_keys():
+    data = request.get_json() or {}
+    ak = data.get("access_key")
+    sk = data.get("secret_key")
+    region = data.get("region", "us-east-1")
+    if not ak or not sk:
+        return jsonify({"ok": False, "error": "Missing access_key or secret_key"}), 400
 
+    # If keys look like demo/fake, return mock summary
+    if "EXAMPLE" in ak.upper() or "FAKE" in ak.upper() or "EXAMPLE" in sk.upper() or "FAKE" in sk.upper():
+        report = sample_mock_report()
+        return jsonify({"ok": True, "summary": report.get("summary", {}), "fake": True})
 
-@app.post("/scan")
+    # Otherwise attempt a real scan but keep it timeboxed
+    try:
+        report = scan_with_credentials(ak, sk, region, timeout_seconds=10)
+        return jsonify({"ok": True, "summary": report.get("summary", {}), "report": report})
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"ok": False, "error": str(e)}), 400
+
+# Full scan endpoint
+@app.route("/scan", methods=["POST"])
 def scan():
-    user = get_user_from_token(request.headers.get("Authorization", ""))
-    if not user:
-        return {"ok": False, "error": "Login required"}, 401
-
-    data = request.json
-    ak, sk = data["access_key"], data["secret_key"]
+    data = request.get_json() or {}
+    ak = data.get("access_key")
+    sk = data.get("secret_key")
     region = data.get("region", "us-east-1")
 
-    result = scan_with_credentials(ak, sk, region)
+    if not ak or not sk:
+        return jsonify({"error": "Missing access_key or secret_key"}), 400
 
-    db = SessionLocal()
-    s = Scan(
-        user_id=user.id,
-        region=region,
-        summary_json=json.dumps(result.get("summary", {})),
-        report_json=json.dumps(result)
-    )
-    db.add(s)
-    db.commit()
-    db.close()
+    # If keys look fake/demo, return mock report immediately
+    if "EXAMPLE" in ak.upper() or "FAKE" in ak.upper() or "EXAMPLE" in sk.upper() or "FAKE" in sk.upper():
+        report = sample_mock_report()
+        # include small server-side timestamp and source label
+        report["_meta"] = {"demo_mode": True, "generated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}
+        return jsonify({"ok": True, "report": report})
 
-    return {"ok": True, "report": result}
-
-
-@app.get("/history")
-def history():
-    user = get_user_from_token(request.headers.get("Authorization", ""))
-    if not user:
-        return {"ok": False, "error": "Login required"}, 401
-
-    db = SessionLocal()
-    scans = db.query(Scan).filter(Scan.user_id == user.id).all()
-    out = []
-    for s in scans:
-        out.append({
-            "id": s.id,
-            "region": s.region,
-            "timestamp": s.timestamp.isoformat(),
-            "summary": json.loads(s.summary_json)
-        })
-    db.close()
-    return {"ok": True, "history": out}
-
-
-@app.get("/history/<id>")
-def history_item(id):
-    user = get_user_from_token(request.headers.get("Authorization", ""))
-    if not user:
-        return {"ok": False, "error": "Login required"}, 401
-
-    db = SessionLocal()
-    s = db.query(Scan).filter(Scan.id == id, Scan.user_id == user.id).first()
-    db.close()
-
-    if not s:
-        return {"ok": False, "error": "Not found"}, 404
-
-    return {"ok": True, "report": json.loads(s.report_json)}
-
+    # Try a real scan (may fail if keys invalid)
+    try:
+        report = scan_with_credentials(ak, sk, region)
+        return jsonify({"ok": True, "report": report})
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"ok": False, "error": str(e)}), 500
 
 if __name__ == "__main__":
-    app.run(port=5000)
+    # Dev server
+    app.run(host="0.0.0.0", port=5000, debug=True)
+
